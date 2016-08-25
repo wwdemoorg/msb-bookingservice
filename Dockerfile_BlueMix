@@ -1,5 +1,5 @@
 FROM registry.ng.bluemix.net/ibmliberty:javaee7
-COPY ./acmeair-as/server.xml /config/
+COPY ./bookingservice-java/server.xml /config/
 
 RUN installUtility install --acceptLicense defaultServer
 
@@ -7,4 +7,4 @@ EXPOSE 80
 ENV VCAP_APP_PORT=80
 ENV SERVICE_NAME=booking
 
-ADD ./acmeair-as/build/libs/acmeair-bs-2.0.0-SNAPSHOT.war /config/apps/
+ADD ./bookingservice-java/build/libs/*.war /config/apps/
