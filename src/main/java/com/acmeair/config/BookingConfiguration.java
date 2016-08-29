@@ -1,5 +1,6 @@
 package com.acmeair.config;
 
+import java.util.ArrayList;
 import java.util.logging.Logger;
 
 import javax.annotation.PostConstruct;
@@ -63,4 +64,53 @@ public class BookingConfiguration {
 			return Response.ok(-1).build();
 		}
 	}
+	
+	@GET
+	@Path("/activeDataService")
+	@Produces("application/json")
+	public Response getActiveDataServiceInfo() {
+		try {		
+			logger.fine("Get active Data Service info");
+			return  Response.ok(ServiceLocator.instance().getServiceType()).build();
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			return Response.ok("Unknown").build();
+		}
+	}
+		
+	@GET
+	@Path("/runtime")
+	@Produces("application/json")
+	public ArrayList<ServiceData> getRuntimeInfo() {
+		try {
+			logger.fine("Getting Runtime info");
+			ArrayList<ServiceData> list = new ArrayList<ServiceData>();
+			ServiceData data = new ServiceData();
+			data.name = "Runtime";
+			data.description = "Java";			
+			list.add(data);
+				
+			data = new ServiceData();
+			data.name = "Version";
+			data.description = System.getProperty("java.version");			
+			list.add(data);
+				
+			data = new ServiceData();
+			data.name = "Vendor";
+			data.description = System.getProperty("java.vendor");			
+			list.add(data);
+				
+			return list;
+		} catch (Exception e) {
+			e.printStackTrace();
+			return null;
+		}
+	}
+
+		
+	class ServiceData {
+		public String name = "";
+		public String description = "";
+	}			
 }

@@ -22,7 +22,7 @@ public class BookingLoaderREST {
 	@Produces("text/plain")
 	public Response loadDB() {	
 		String response = loader.clearBookingDB();
-		return Response.ok(response).build();	
+		return Response.ok(response).build();
 	}
 
 }
