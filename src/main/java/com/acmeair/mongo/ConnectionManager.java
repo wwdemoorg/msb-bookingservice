@@ -81,8 +81,7 @@ public class ConnectionManager implements MongoConstants{
 				}
 				if (System.getenv("MONGO_DBNAME") != null) {
 					dbname = System.getenv("MONGO_DBNAME");
-				}
-				if (prop.containsKey("dbname")){
+				} else if (prop.containsKey("dbname")){
 					dbname = prop.getProperty("dbname");
 				}
 				if (prop.containsKey("username")){
