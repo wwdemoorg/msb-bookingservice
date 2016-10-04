@@ -1,8 +1,8 @@
-REGISTRY=registry.ng.bluemix.net
-NAME_SPACE=wasperf
-SD_URL=https://servicediscovery.ng.bluemix.net
-SD_TOKEN=1dmkrt3l8j8i8a57ccqgpuf17i6cmim12uqbjqgu38c3dn3jh7ke
-MONGO_BRIDGE=MongoBridge1
+REGISTRY=${1}
+NAME_SPACE=${2}
+SD_URL=${3}
+SD_TOKEN=${4}
+MONGO_BRIDGE=${5}
 
 docker build -f ./Dockerfile_BlueMix -t ${REGISTRY}/${NAME_SPACE}/bookingservice-java .
 docker push ${REGISTRY}/${NAME_SPACE}/bookingservice-java
