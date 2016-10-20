@@ -44,6 +44,7 @@ public class BookingServiceSessionFilter implements Filter {
 	private static final String AUTHCHECK_PATH = "/rest/api/login/authcheck/";
 	private static final String CONFIG_PATH = "/rest/api/bookings/config";
 	private static final String LOADER_PATH = "/rest/api/bookings/loader";
+	private static final String HEALTH_PATH = "/rest/api/bookings/health";
 	
 	private static String SESSIONID_COOKIE_NAME = "sessionid";
 	
@@ -60,7 +61,7 @@ public class BookingServiceSessionFilter implements Filter {
 		String path = request.getContextPath() + request.getServletPath() + request.getPathInfo();
 	
 		
-		if (path.contains(CONFIG_PATH) || path.contains(LOADER_PATH)) {
+		if (path.contains(CONFIG_PATH) || path.contains(LOADER_PATH) || path.contains(HEALTH_PATH)) {
 			chain.doFilter(req, resp);
 			return;
 		}

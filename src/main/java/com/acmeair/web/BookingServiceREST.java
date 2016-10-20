@@ -113,5 +113,10 @@ public class BookingServiceREST {
 		}
 	}
 	
-
+	@GET
+	@Path("/health")
+	public Response checkStatus() {
+	    return Response.ok("OK").build();
+	    
+	}   
 }

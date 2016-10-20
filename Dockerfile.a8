@@ -1,0 +1,27 @@
+FROM websphere-liberty:beta
+
+ADD Dockerfile /root/Dockerfile
+
+# Install Filebeat
+RUN set -ex \
+    && wget -qO /tmp/filebeat_1.2.2_amd64.deb https://download.elastic.co/beats/filebeat/filebeat_1.2.2_amd64.deb \
+    && dpkg -i /tmp/filebeat_1.2.2_amd64.deb \
+    && rm /tmp/filebeat_1.2.2_amd64.deb
+
+
+RUN rm -rf /opt/ibm/wlp/usr/servers/defaultServer/server.xml
+ADD server.xml /opt/ibm/wlp/usr/servers/defaultServer/server.xml
+
+RUN installUtility install --acceptLicense defaultServer
+RUN rm -rf /opt/ibm/wlp/usr/servers/defaultServer/workarea
+
+ADD ./build/libs/*.war /opt/ibm/wlp/usr/servers/defaultServer/apps
+
+EXPOSE 80
+
+ENV AUTH_SERVICE=localhost:6379/auth/acmeair-as
+ENV MONGO_HOST=booking_db
+
+RUN wget -qO- https://github.com/amalgam8/amalgam8/releases/download/v0.4.0/a8sidecar.sh | sh
+ENTRYPOINT ["a8sidecar", "--supervise", "/opt/ibm/wlp/bin/server", "run", "defaultServer"]
+
