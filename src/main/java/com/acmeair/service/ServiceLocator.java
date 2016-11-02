@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2013-2015 IBM Corp.
+* Copyright (c) 2013-2016 IBM Corp.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -21,15 +21,13 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicReference;
 
-import javax.annotation.PostConstruct;
 import javax.enterprise.context.spi.CreationalContext;
 import javax.enterprise.inject.Any;
 import javax.enterprise.inject.Default;
 import javax.enterprise.inject.spi.Bean;
 import javax.enterprise.inject.spi.BeanManager;
+import javax.enterprise.inject.spi.CDI;
 import javax.enterprise.util.AnnotationLiteral;
-import javax.inject.Inject;
-import javax.naming.InitialContext;
 import javax.naming.NamingException;
 
 import java.util.logging.Logger;
@@ -46,7 +44,6 @@ public class ServiceLocator {
 
 	private static AtomicReference<ServiceLocator> singletonServiceLocator = new AtomicReference<ServiceLocator>();
 
-	@Inject
 	BeanManager beanManager;
 	
 	public static ServiceLocator instance() {
@@ -58,27 +55,6 @@ public class ServiceLocator {
 			}
 		}
 		return singletonServiceLocator.get();
-	}
-	
-	@PostConstruct
-	private void initialization()  {		
-		if(beanManager == null){
-			logger.info("Attempting to look up BeanManager through JNDI at java:comp/BeanManager");
-			try {
-				beanManager = (BeanManager) new InitialContext().lookup("java:comp/BeanManager");
-			} catch (NamingException e) {
-				logger.severe("BeanManager not found at java:comp/BeanManager");
-			}
-		}
-		
-		if(beanManager == null){
-			logger.info("Attempting to look up BeanManager through JNDI at java:comp/env/BeanManager");
-			try {
-				beanManager = (BeanManager) new InitialContext().lookup("java:comp/env/BeanManager");
-			} catch (NamingException e) {
-				logger.severe("BeanManager not found at java:comp/env/BeanManager ");
-			}
-		}
 	}
 	
 	public static void updateService(String serviceName){
@@ -124,24 +100,6 @@ public class ServiceLocator {
 			}
 		}
 
-		if(beanManager == null) {
-			logger.info("Attempting to look up BeanManager through JNDI at java:comp/BeanManager");
-			try {
-				beanManager = (BeanManager) new InitialContext().lookup("java:comp/BeanManager");
-			} catch (NamingException e) {
-				logger.severe("BeanManager not found at java:comp/BeanManager");
-			}
-		}	
-		
-		if(beanManager == null){
-			logger.info("Attempting to look up BeanManager through JNDI at java:comp/env/BeanManager");
-			try {
-				beanManager = (BeanManager) new InitialContext().lookup("java:comp/env/BeanManager");
-			} catch (NamingException e) {
-				logger.severe("BeanManager not found at java:comp/env/BeanManager ");
-			}
-		}
-		
 		if (type==null)
 		{
 			String vcapJSONString = System.getenv("VCAP_SERVICES");
@@ -203,9 +161,19 @@ public class ServiceLocator {
 
 	@SuppressWarnings("unchecked")
 	public <T> T getService (Class<T> clazz) {		
-		if(beanManager == null) {
-			logger.severe("BeanManager is null!!!");
-		}		
+	    if(beanManager == null){
+            logger.info("Attempting to look up BeanManager with CDI.current().getBeanManager()");
+            try {
+                beanManager = CDI.current().getBeanManager();
+            } catch (Exception e) {
+                logger.severe("BeanManager not found at CDI.current().getBeanManager()");
+            }
+        }
+	    
+	    if(beanManager == null) {
+	        logger.severe("BeanManager is null!!!");
+	    }
+	    						
     	Set<Bean<?>> beans = beanManager.getBeans(clazz,new AnnotationLiteral<Any>() {
 			private static final long serialVersionUID = 1L;});
 

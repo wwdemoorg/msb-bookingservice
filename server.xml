@@ -2,9 +2,10 @@
 <server description="new server">
     <!-- Enable features -->
     <featureManager>
-         <feature>jaxrs-2.0</feature>
+         <!--<feature>jaxrs-2.0</feature>
          <feature>managedBeans-1.0</feature>
-         <feature>cdi-1.2</feature>
+         <feature>cdi-1.2</feature>-->
+         <feature>microProfile-1.0</feature>
     </featureManager>
 
     <!-- To access this server from a remote client add a host attribute to the following element, e.g. host="*" -->

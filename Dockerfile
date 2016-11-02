@@ -1,4 +1,4 @@
-FROM websphere-liberty:beta
+FROM websphere-liberty:microProfile
 
 ADD Dockerfile /root/Dockerfile
 
