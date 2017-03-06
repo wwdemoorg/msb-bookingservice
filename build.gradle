@@ -11,6 +11,7 @@ dependencies {
 	compile 'org.mongodb:bson:3.1.1'
     compile 'com.googlecode.json-simple:json-simple:1.1.1'
     compile 'javax:javaee-web-api:7.0'
+    compile 'io.jsonwebtoken:jjwt:0.7.0'
     providedRuntime 'javax:javaee-web-api:7.0'
 }
 

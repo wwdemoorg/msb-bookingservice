@@ -12,7 +12,7 @@ import com.acmeair.service.BookingService;
 import com.acmeair.service.ServiceLocator;
 
 
-@Path("/bookings/config")
+@Path("/config")
 public class BookingConfiguration {
     	
 	Logger logger = Logger.getLogger(BookingConfiguration.class.getName());

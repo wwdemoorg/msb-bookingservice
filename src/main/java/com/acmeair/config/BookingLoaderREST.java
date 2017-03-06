@@ -9,7 +9,7 @@ import javax.ws.rs.core.Response;
 import com.acmeair.loader.BookingLoader;
 
 
-@Path("/bookings/loader")
+@Path("/loader")
 public class BookingLoaderREST {
 
 	//	private static Logger logger = Logger.getLogger(LoaderREST.class.getName());

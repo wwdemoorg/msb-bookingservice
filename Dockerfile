@@ -10,9 +10,8 @@ RUN rm -rf /opt/ibm/wlp/usr/servers/defaultServer/workarea
 
 ADD ./build/libs/*.war /opt/ibm/wlp/usr/servers/defaultServer/apps
 
-EXPOSE 80
+EXPOSE 9080
 
-ENV AUTH_SERVICE=nginx1/auth/acmeair-as
 ENV MONGO_HOST=booking_db
 
 CMD ["/opt/ibm/wlp/bin/server", "run", "defaultServer"]

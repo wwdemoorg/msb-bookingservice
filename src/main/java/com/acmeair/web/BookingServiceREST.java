@@ -15,24 +15,48 @@
 *******************************************************************************/
 package com.acmeair.web;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
+import javax.ws.rs.CookieParam;
 import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
 import com.acmeair.service.BookingService;
 import com.acmeair.service.ServiceLocator;
 
-@Path("/bookings")
+import io.jsonwebtoken.Jwts;
+@Path("/")
 public class BookingServiceREST {
 	
 	private BookingService bs = ServiceLocator.instance().getService(BookingService.class);
+	protected Logger logger =  Logger.getLogger(BookingServiceREST.class.getName());
 	
+	// TODO: Use actual shared keys instead of this secret 
+    private static final String secretKey = "secret";
+	
+	@Context 
+    private HttpServletRequest request;
+	
+	private boolean validateJWT(String customerid, String jwtToken)    {
+        
+        if(logger.isLoggable(Level.FINE)){
+            logger.fine("validate : customerid " + customerid);
+        }
+                
+        return Jwts.parser().setSigningKey(secretKey).parseClaimsJws(jwtToken).getBody().getSubject().equals(customerid);
+    }
+    
+
 	@POST
 	@Consumes({"application/x-www-form-urlencoded"})
 	@Path("/bookflights")
@@ -43,9 +67,14 @@ public class BookingServiceREST {
 			@FormParam("toFlightSegId") String toFlightSegId,
 			@FormParam("retFlightId") String retFlightId,
 			@FormParam("retFlightSegId") String retFlightSegId,
-			@FormParam("oneWayFlight") boolean oneWay) {
+			@FormParam("oneWayFlight") boolean oneWay,
+	        @CookieParam("jwt_token") String jwtToken) {
 		try {
-			
+		    // make sure the user isn't trying to bookflights for someone else
+            if (!validateJWT(userid,jwtToken)) {
+                return Response.status(Response.Status.FORBIDDEN).build();
+            }
+		    
 			String bookingIdTo = bs.bookFlight(userid, toFlightSegId, toFlightId);
 			
 			String bookingInfo = "";
@@ -68,11 +97,16 @@ public class BookingServiceREST {
 	@GET
 	@Path("/bybookingnumber/{userid}/{number}")
 	@Produces("text/plain")
-	public String getBookingByNumber(
+	public Response getBookingByNumber(
 			@PathParam("number") String number,
-			@PathParam("userid") String userid) {
+			@PathParam("userid") String userid,
+			@CookieParam("jwt_token") String jwtToken) {
 		try {
-			return bs.getBooking(userid, number);
+		    //  make sure the user isn't trying to bookflights for someone else
+            if (!validateJWT(userid, jwtToken)) {
+                return Response.status(Response.Status.FORBIDDEN).build();
+            }
+			return Response.ok(bs.getBooking(userid, number)).build();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -83,10 +117,14 @@ public class BookingServiceREST {
 	@GET
 	@Path("/byuser/{user}")
 	@Produces("text/plain")
-	public String getBookingsByUser(@PathParam("user") String user) {
+	public Response getBookingsByUser(@PathParam("user") String user,@CookieParam("jwt_token") String jwtToken) {
 		
 		try {
-			return  bs.getBookingsByUser(user).toString();
+		    // make sure the user isn't trying to bookflights for someone else
+            if (!validateJWT(user,jwtToken)) {
+                return Response.status(Response.Status.FORBIDDEN).build();
+            }
+			return  Response.ok(bs.getBookingsByUser(user).toString()).build();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -101,8 +139,14 @@ public class BookingServiceREST {
 	@Produces("text/plain")
 	public Response cancelBookingsByNumber(
 			@FormParam("number") String number,
-			@FormParam("userid") String userid) {
+			@FormParam("userid") String userid,
+			@CookieParam("jwt_token") String jwtToken) {
 		try {
+		    //   make sure the user isn't trying to bookflights for someone else
+            if (!validateJWT(userid,jwtToken)) {
+                return Response.status(Response.Status.FORBIDDEN).build();
+            }
+		    
 			bs.cancelBooking(userid, number);
 			return Response.ok("booking " + number + " deleted.").build();
 					
@@ -114,9 +158,8 @@ public class BookingServiceREST {
 	}
 	
 	@GET
-	@Path("/health")
 	public Response checkStatus() {
 	    return Response.ok("OK").build();
 	    
-	}   
+	}  
 }

@@ -11,7 +11,7 @@ import com.acmeair.config.BookingLoaderREST;
 
 import javax.ws.rs.ApplicationPath;
 
-@ApplicationPath("/rest/api")
+@ApplicationPath("/")
 
 public class BookingServiceApp extends Application {
     public Set<Class<?>> getClasses() {
