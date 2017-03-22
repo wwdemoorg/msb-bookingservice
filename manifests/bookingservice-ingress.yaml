@@ -4,7 +4,7 @@ metadata:
   annotations:
     ingress.kubernetes.io/rewrite-target: /
     ingress.kubernetes.io/ssl-redirect: "false"
-  name: flight-ingress
+  name: booking-ingress
 spec:
   rules:
   - host:
