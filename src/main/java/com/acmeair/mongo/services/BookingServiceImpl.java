@@ -16,19 +16,16 @@ import org.bson.Document;
 import com.acmeair.mongo.ConnectionManager;
 import com.acmeair.mongo.MongoConstants;
 import com.acmeair.service.BookingService;
-import com.acmeair.service.DataService;
 import com.acmeair.service.KeyGenerator;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
-//import com.mongodb.async.client.*;
 
-@DataService(name=MongoConstants.KEY,description=MongoConstants.KEY_DESCRIPTION)
+
 public class BookingServiceImpl implements BookingService, MongoConstants {
 
-	//private final static Logger logger = Logger.getLogger(BookingService.class.getName()); 
-
 	protected Logger logger =  Logger.getLogger(BookingService.class.getName());	
+
 	private MongoCollection<Document> booking;
 	
 	@Inject 
@@ -119,4 +116,9 @@ public class BookingServiceImpl implements BookingService, MongoConstants {
 	public void dropBookings() {
 		booking.deleteMany(new Document());	
 	}
+
+    @Override
+    public String getServiceType() {
+        return "mongo";
+    }
 }

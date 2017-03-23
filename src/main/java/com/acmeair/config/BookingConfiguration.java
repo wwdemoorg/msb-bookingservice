@@ -3,13 +3,13 @@ package com.acmeair.config;
 import java.util.ArrayList;
 import java.util.logging.Logger;
 
+import javax.inject.Inject;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Response;
 
 import com.acmeair.service.BookingService;
-import com.acmeair.service.ServiceLocator;
 
 
 @Path("/config")
@@ -17,7 +17,8 @@ public class BookingConfiguration {
     	
 	Logger logger = Logger.getLogger(BookingConfiguration.class.getName());
 
-	private BookingService bs = ServiceLocator.instance().getService(BookingService.class);
+	@Inject
+    BookingService bookingService;
 	
     public BookingConfiguration() {
         super();
@@ -28,7 +29,7 @@ public class BookingConfiguration {
 	@Produces("application/json")
 	public Response countBookings() {
 		try {
-			Long count = bs.count();			
+			Long count = bookingService.count();			
 			return Response.ok(count).build();
 		}
 		catch (Exception e) {
@@ -43,7 +44,7 @@ public class BookingConfiguration {
 	public Response getActiveDataServiceInfo() {
 		try {		
 			logger.fine("Get active Data Service info");
-			return  Response.ok(ServiceLocator.instance().getServiceType()).build();
+			return  Response.ok(bookingService.getServiceType()).build();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
