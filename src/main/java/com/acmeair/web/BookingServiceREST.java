@@ -18,6 +18,7 @@ package com.acmeair.web;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.CookieParam;
@@ -32,13 +33,14 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
 import com.acmeair.service.BookingService;
-import com.acmeair.service.ServiceLocator;
-
 import io.jsonwebtoken.Jwts;
+
 @Path("/")
 public class BookingServiceREST {
 	
-	private BookingService bs = ServiceLocator.instance().getService(BookingService.class);
+    @Inject
+    BookingService bs;
+    
 	protected Logger logger =  Logger.getLogger(BookingServiceREST.class.getName());
 	
 	// TODO: Use actual shared keys instead of this secret 

@@ -17,13 +17,16 @@ package com.acmeair.loader;
 
 import java.util.logging.Logger;
 
+import javax.inject.Inject;
+
 import com.acmeair.service.BookingService;
-import com.acmeair.service.ServiceLocator;
 
 
 public class BookingLoader {
 
-	private BookingService bookingService = ServiceLocator.instance().getService(BookingService.class);
+    @Inject
+    BookingService bookingService;
+    
 	private static Logger logger = Logger.getLogger(BookingLoader.class.getName());
 
 	public String clearBookingDB() {		

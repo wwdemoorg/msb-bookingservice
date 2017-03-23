@@ -25,14 +25,7 @@
     <artifactId>bookingservice-java</artifactId>
     <packaging>war</packaging>
     <name>Booking Service :: Java</name>
-
-    <repositories>
-      <repository>
-        <id>jitpack.io</id>
-        <url>https://jitpack.io</url>
-      </repository>
-    </repositories>
-
+   
     <properties>
       <maven.compiler.source>1.8</maven.compiler.source>
       <maven.compiler.target>1.8</maven.compiler.target>
@@ -48,25 +41,7 @@
                   <failOnMissingWebXml>false</failOnMissingWebXml>
                   <packagingExcludes>pom.xml</packagingExcludes>
               </configuration>
-          </plugin>
-
-          <plugin>
-            <groupId>io.fabric8</groupId>
-            <artifactId>docker-maven-plugin</artifactId>
-            <configuration>
-              <images>
-                <image>
-                  <name>bookingservice-java</name>
-                  <build>
-                    <dockerFileDir>artifacts</dockerFileDir>
-                    <assembly>
-                      <descriptorRef>artifact</descriptorRef>
-                    </assembly>
-                  </build>
-                </image>
-              </images>
-            </configuration>
-          </plugin>
+          </plugin>       
       </plugins>
     </build>
 
