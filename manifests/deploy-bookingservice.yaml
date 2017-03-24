@@ -21,6 +21,28 @@ spec:
         ports:
           - containerPort: 9080
         imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - name: keystore
+          mountPath: /etc/wlp/config/keystore
+        - name: truststore
+          mountPath: /etc/wlp/config/truststore
+        - name: liberty-config
+          mountPath: /config/configDropins
+      volumes:
+      - name: keystore
+        secret:
+          secretName: wlp-keystore
+      - name: truststore
+        secret:
+          secretName: wlp-truststore
+      - name: liberty-config
+        configMap:
+          name: liberty-config
+          items:
+            - key: keystore.xml
+              path: defaults/keystore.xml
+            - key: logging.xml
+              path: defaults/logging.xml    
 ---
 apiVersion: v1
 kind: Service
