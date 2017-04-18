@@ -19,6 +19,4 @@
         contextRoot="/" />   
     <webContainer deferServletLoad="false"/>
     <!--logging traceSpecification="*=audit:com.acmeair.*=finest"/-->
-    
-    <executor name="LargeThreadPool" id="default" coreThreads="10" maxThreads="10" />
 </server>

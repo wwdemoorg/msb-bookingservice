@@ -46,9 +46,6 @@ public class BookingServiceREST {
 	// TODO: Use actual shared keys instead of this secret 
     private static final String secretKey = "secret";
 	
-	@Context 
-    private HttpServletRequest request;
-	
 	private boolean validateJWT(String customerid, String jwtToken)    {
         
         if(logger.isLoggable(Level.FINE)){
