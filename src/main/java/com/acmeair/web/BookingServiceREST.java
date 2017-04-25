@@ -110,7 +110,7 @@ public class BookingServiceREST {
             if (!validateJWT(userid,jwtToken)) {
                 return Response.status(Response.Status.FORBIDDEN).build();
             }
-		    System.out.println("HEY!: " +  toFlightSegId + " " +  retFlightSegId);
+		    
 			String bookingIdTo = bs.bookFlight(userid, toFlightSegId, toFlightId);
 			if (TRACK_REWARD_MILES) {
 			    updateRewardMiles(userid, toFlightSegId, true);
@@ -208,31 +208,29 @@ public class BookingServiceREST {
 	private void updateRewardMiles(String customerId, String flightSegId, boolean add) {
 	     // Cached the WebTarget (t) above to avoid the huge creation overhead.
 	        
-	        Form form = new Form();
-	        form.param("flightSegment", flightSegId);
+	    Form form = new Form();
+	    form.param("flightSegment", flightSegId);
 	            
-	        Builder builder = flightClientWebTarget.request();
-	        builder.accept(MediaType.TEXT_PLAIN);       
-	        Response res = builder.post(Entity.entity(form,MediaType.APPLICATION_FORM_URLENCODED_TYPE), Response.class);
-	        String miles = res.readEntity(String.class);               
+	    Builder builder = flightClientWebTarget.request();
+	    builder.accept(MediaType.TEXT_PLAIN);       
+	    Response res = builder.post(Entity.entity(form,MediaType.APPLICATION_FORM_URLENCODED_TYPE), Response.class);
+	    String miles = res.readEntity(String.class);               
 
-	        if (!add) {
-	            miles = ((Integer)(Integer.parseInt(miles) * -1)).toString();
-	        }
-	        	        	        
-	        form = new Form();
-	        form.param("miles", miles);
-	        
-	        WebTarget customerClientWebTargetFinal = customerClientWebTarget.path(customerId);
-	        
-	        builder = customerClientWebTargetFinal.request();
-	        builder.accept(MediaType.TEXT_PLAIN);       
-	        res = builder.post(Entity.entity(form,MediaType.APPLICATION_FORM_URLENCODED_TYPE), Response.class);
-	        res.readEntity(String.class); 
-
+	    if (!add) {
+	        miles = ((Integer)(Integer.parseInt(miles) * -1)).toString();
 	    }
+	        	        	        
+	    form = new Form();
+	    form.param("miles", miles);
+	        
+	    WebTarget customerClientWebTargetFinal = customerClientWebTarget.path(customerId);
+	        
+	    builder = customerClientWebTargetFinal.request();
+	    builder.accept(MediaType.TEXT_PLAIN);       
+	    res = builder.post(Entity.entity(form,MediaType.APPLICATION_FORM_URLENCODED_TYPE), Response.class);
+	    res.readEntity(String.class); 
 
-	
+	}	
 	
 	@GET
 	public Response checkStatus() {
