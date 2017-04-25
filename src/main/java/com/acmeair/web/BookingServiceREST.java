@@ -19,7 +19,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.inject.Inject;
-import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.CookieParam;
 import javax.ws.rs.FormParam;
@@ -28,9 +27,18 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
-import javax.ws.rs.core.Context;
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.client.Invocation.Builder;
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.Form;
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
 
 import com.acmeair.service.BookingService;
 import io.jsonwebtoken.Jwts;
@@ -45,9 +53,38 @@ public class BookingServiceREST {
 	
 	// TODO: Use actual shared keys instead of this secret 
     private static final String secretKey = "secret";
-	
-	private boolean validateJWT(String customerid, String jwtToken)    {
+    
+ // Default to amalgam8 default
+    private static final Boolean TRACK_REWARD_MILES = Boolean.valueOf((System.getenv("TRACK_REWARD_MILES") == null) ? "false" : System.getenv("TRACK_REWARD_MILES"));
+
+    private static final String FLIGHT_SERVICE_LOC = ((System.getenv("FLIGHT_SERVICE") == null) ? "localhost:6379/flight" : System.getenv("FLIGHT_SERVICE"));
+    private static final String GET_REWARD_PATH = "/getrewardmiles";
+    
+    private static final String CUSTOMER_SERVICE_LOC = ((System.getenv("CUSTOMER_SERVICE") == null) ? "localhost:6379/customer" : System.getenv("CUSTOMER_SERVICE"));
+    private static final String UPDATE_REWARD_PATH = "/updateCustomerTotalMiles";
+
+    
+    private static WebTarget flightClientWebTarget = null;
+    private static WebTarget customerClientWebTarget = null;
+
+    static {
+        // Set up JAX-RS Client. Recreating the WebTarget is painfully slow, so caching it here.
+        // This works on Libertty 17.0.0.1+
+        // If there is a better way to do this, please let me know!
+        Client flightClient = ClientBuilder.newClient();
+        flightClient.property("http.maxConnections", Integer.valueOf(50));
+        flightClient.property("thread.safe.client", Boolean.valueOf(true));
+        flightClientWebTarget = flightClient.target("http://"+ FLIGHT_SERVICE_LOC + GET_REWARD_PATH);
         
+        Client customerClient = ClientBuilder.newClient();
+        customerClient.property("http.maxConnections", Integer.valueOf(50));
+        customerClient.property("thread.safe.client", Boolean.valueOf(true));
+        customerClientWebTarget = customerClient.target("http://"+ CUSTOMER_SERVICE_LOC + UPDATE_REWARD_PATH);
+    }
+    
+    
+	
+	private boolean validateJWT(String customerid, String jwtToken)    {    
         if(logger.isLoggable(Level.FINE)){
             logger.fine("validate : customerid " + customerid);
         }
@@ -73,14 +110,20 @@ public class BookingServiceREST {
             if (!validateJWT(userid,jwtToken)) {
                 return Response.status(Response.Status.FORBIDDEN).build();
             }
-		    
+		    System.out.println("HEY!: " +  toFlightSegId + " " +  retFlightSegId);
 			String bookingIdTo = bs.bookFlight(userid, toFlightSegId, toFlightId);
+			if (TRACK_REWARD_MILES) {
+			    updateRewardMiles(userid, toFlightSegId, true);
+			}
 			
 			String bookingInfo = "";
 			
 			String bookingIdReturn = null;
 			if (!oneWay) {
 				bookingIdReturn = bs.bookFlight(userid, retFlightSegId, retFlightId);
+				if (TRACK_REWARD_MILES) {
+				    updateRewardMiles(userid, retFlightSegId, true);
+				}				
 				bookingInfo = "{\"oneWay\":false,\"returnBookingId\":\"" + bookingIdReturn + "\",\"departBookingId\":\"" + bookingIdTo + "\"}";
 			} else {
 				bookingInfo = "{\"oneWay\":true,\"departBookingId\":\"" + bookingIdTo + "\"}";
@@ -92,8 +135,8 @@ public class BookingServiceREST {
 			return Response.status(Status.INTERNAL_SERVER_ERROR).build();
 		}
 	}
-	
-	@GET
+		
+    @GET
 	@Path("/bybookingnumber/{userid}/{number}")
 	@Produces("text/plain")
 	public Response getBookingByNumber(
@@ -131,7 +174,6 @@ public class BookingServiceREST {
 		}
 	}
 
-
 	@POST
 	@Consumes({"application/x-www-form-urlencoded"})
 	@Path("/cancelbooking")
@@ -146,7 +188,14 @@ public class BookingServiceREST {
                 return Response.status(Response.Status.FORBIDDEN).build();
             }
 		    
+            if (TRACK_REWARD_MILES) {
+                JSONObject booking = (JSONObject) new JSONParser().parse(bs.getBooking(userid, number));
+                updateRewardMiles(userid, (String)booking.get("flightSegmentId"), false);
+            }
+            
 			bs.cancelBooking(userid, number);
+			
+
 			return Response.ok("booking " + number + " deleted.").build();
 					
 		}
@@ -155,6 +204,35 @@ public class BookingServiceREST {
 			return Response.status(Status.INTERNAL_SERVER_ERROR).build();
 		}
 	}
+	
+	private void updateRewardMiles(String customerId, String flightSegId, boolean add) {
+	     // Cached the WebTarget (t) above to avoid the huge creation overhead.
+	        
+	        Form form = new Form();
+	        form.param("flightSegment", flightSegId);
+	            
+	        Builder builder = flightClientWebTarget.request();
+	        builder.accept(MediaType.TEXT_PLAIN);       
+	        Response res = builder.post(Entity.entity(form,MediaType.APPLICATION_FORM_URLENCODED_TYPE), Response.class);
+	        String miles = res.readEntity(String.class);               
+
+	        if (!add) {
+	            miles = ((Integer)(Integer.parseInt(miles) * -1)).toString();
+	        }
+	        	        	        
+	        form = new Form();
+	        form.param("miles", miles);
+	        
+	        WebTarget customerClientWebTargetFinal = customerClientWebTarget.path(customerId);
+	        
+	        builder = customerClientWebTargetFinal.request();
+	        builder.accept(MediaType.TEXT_PLAIN);       
+	        res = builder.post(Entity.entity(form,MediaType.APPLICATION_FORM_URLENCODED_TYPE), Response.class);
+	        res.readEntity(String.class); 
+
+	    }
+
+	
 	
 	@GET
 	public Response checkStatus() {
