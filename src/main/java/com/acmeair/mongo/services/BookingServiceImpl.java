@@ -121,7 +121,7 @@ public class BookingServiceImpl implements BookingService, MongoConstants {
 			logger.fine("cancelBooking _id : " + bookingId);
 		}
 		try{
-			booking.deleteMany(eq("_id", bookingId));
+		    booking.deleteMany(eq("_id", bookingId));
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
