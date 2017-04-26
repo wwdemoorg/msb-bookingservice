@@ -7,3 +7,6 @@ target/
 .project
 .gradle
 .DS_Store
+/.apt_generated/
+.factorypath
+src/main/webapp/META-INF/MANIFEST.MF
