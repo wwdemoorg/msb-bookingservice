@@ -187,15 +187,24 @@ public class BookingServiceREST {
             if (!validateJWT(userid,jwtToken)) {
                 return Response.status(Response.Status.FORBIDDEN).build();
             }
-		    
+ 
             if (TRACK_REWARD_MILES) {
-                JSONObject booking = (JSONObject) new JSONParser().parse(bs.getBooking(userid, number));
-                updateRewardMiles(userid, (String)booking.get("flightSegmentId"), false);
+                try {
+                    JSONObject booking = (JSONObject) new JSONParser().parse(bs.getBooking(userid, number));
+                    bs.cancelBooking(userid, number);
+                    updateRewardMiles(userid, (String)booking.get("flightSegmentId"), false);
+                }
+                catch (RuntimeException re) {
+                    // booking does not exist
+                    if(logger.isLoggable(Level.FINE)){
+                        logger.fine("booking : This booking does not exist: " + number);
+                    }
+                }
+            }
+            else {
+                bs.cancelBooking(userid, number);
             }
             
-			bs.cancelBooking(userid, number);
-			
-
 			return Response.ok("booking " + number + " deleted.").build();
 					
 		}
