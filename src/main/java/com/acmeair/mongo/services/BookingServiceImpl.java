@@ -57,7 +57,28 @@ public class BookingServiceImpl implements BookingService, MongoConstants {
 
 	@Override
 	public String bookFlight(String customerId, String flightSegmentId, String flightId) {
-		return bookFlight(customerId, flightId);	
+		if (flightSegmentId == null ) {
+		    return bookFlight(customerId, flightId);
+		} else {
+		    
+		    try{
+	            
+	            String bookingId = keyGenerator.generate().toString();
+	                        
+	            Document bookingDoc = new Document("_id", bookingId)
+	            .append("customerId", customerId)
+	            .append("flightId", flightId)
+	            .append("dateOfBooking",  new Date())
+	            .append("flightSegmentId",  flightSegmentId);
+	            
+	            booking.insertOne(bookingDoc);
+	            
+	            return bookingId;
+	        } catch (Exception e) {
+	            throw new RuntimeException(e);
+	        } 
+		    
+		}
 	}
 	
 	@Override
@@ -100,7 +121,7 @@ public class BookingServiceImpl implements BookingService, MongoConstants {
 			logger.fine("cancelBooking _id : " + bookingId);
 		}
 		try{
-			booking.deleteMany(eq("_id", bookingId));
+		    booking.deleteMany(eq("_id", bookingId));
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
