@@ -27,10 +27,12 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.client.AsyncInvoker;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.Invocation.Builder;
+import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.Form;
 import javax.ws.rs.core.MediaType;
@@ -54,9 +56,10 @@ public class BookingServiceREST {
 	// TODO: Use actual shared keys instead of this secret 
     private static final String secretKey = "secret";
     
- // Default to amalgam8 default
+    // TRACK MILES OPTIONS
     private static final Boolean TRACK_REWARD_MILES = Boolean.valueOf((System.getenv("TRACK_REWARD_MILES") == null) ? "false" : System.getenv("TRACK_REWARD_MILES"));
-
+   
+    // Default to amalgam8 default
     private static final String FLIGHT_SERVICE_LOC = ((System.getenv("FLIGHT_SERVICE") == null) ? "localhost:6379/flight" : System.getenv("FLIGHT_SERVICE"));
     private static final String GET_REWARD_PATH = "/getrewardmiles";
     
@@ -68,6 +71,8 @@ public class BookingServiceREST {
     private static WebTarget customerClientWebTarget = null;
 
     static {
+        System.out.println("TRACK_REWARD_MILES: " + TRACK_REWARD_MILES);
+                
         // Set up JAX-RS Client. Recreating the WebTarget is painfully slow, so caching it here.
         // This works on Libertty 17.0.0.1+
         // If there is a better way to do this, please let me know!
@@ -215,30 +220,41 @@ public class BookingServiceREST {
 	}
 	
 	private void updateRewardMiles(String customerId, String flightSegId, boolean add) {
-	     // Cached the WebTarget (t) above to avoid the huge creation overhead.
-	        
+	    // Cached the WebTarget above to avoid the huge creation overhead.
+	    // Call the flight service to get the miles for the flight segment.
+	    //   Do this call asynchronously to return control back to the client.
+	    // Then call the customer service to update the total_miles
+	    
 	    Form form = new Form();
 	    form.param("flightSegment", flightSegId);
-	            
+	     
 	    Builder builder = flightClientWebTarget.request();
-	    builder.accept(MediaType.TEXT_PLAIN);       
-	    Response res = builder.post(Entity.entity(form,MediaType.APPLICATION_FORM_URLENCODED_TYPE), Response.class);
-	    String miles = res.readEntity(String.class);               
-
-	    if (!add) {
-	        miles = ((Integer)(Integer.parseInt(miles) * -1)).toString();
-	    }
-	        	        	        
-	    form = new Form();
-	    form.param("miles", miles);
+	    AsyncInvoker asyncInvoker = builder.async();
+	    asyncInvoker.post(Entity.entity(form,MediaType.APPLICATION_FORM_URLENCODED_TYPE), new InvocationCallback<Response>() {
 	        
-	    WebTarget customerClientWebTargetFinal = customerClientWebTarget.path(customerId);
-	        
-	    builder = customerClientWebTargetFinal.request();
-	    builder.accept(MediaType.TEXT_PLAIN);       
-	    res = builder.post(Entity.entity(form,MediaType.APPLICATION_FORM_URLENCODED_TYPE), Response.class);
-	    res.readEntity(String.class); 
-
+	        @Override
+	        public void completed(Response response) {
+	            String miles = response.readEntity(String.class); 
+	            if (!add) {
+	                miles = ((Integer)(Integer.parseInt(miles) * -1)).toString();
+	            }
+	                                        
+	            Form form = new Form();
+	            form.param("miles", miles);
+	                
+	            WebTarget customerClientWebTargetFinal = customerClientWebTarget.path(customerId);
+	                
+	            Builder builder = customerClientWebTargetFinal.request();
+	            builder.accept(MediaType.TEXT_PLAIN);       
+	            Response res = builder.post(Entity.entity(form,MediaType.APPLICATION_FORM_URLENCODED_TYPE), Response.class);
+	            res.readEntity(String.class); 
+	        }
+	         
+	        @Override
+	        public void failed(Throwable throwable) {
+	            throwable.printStackTrace();
+	        }
+	    });
 	}	
 	
 	@GET
