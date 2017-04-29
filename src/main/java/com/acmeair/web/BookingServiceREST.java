@@ -43,7 +43,10 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 
 import com.acmeair.service.BookingService;
-import io.jsonwebtoken.Jwts;
+import com.auth0.jwt.JWT;
+import com.auth0.jwt.JWTVerifier;
+import com.auth0.jwt.algorithms.Algorithm;
+import com.auth0.jwt.interfaces.DecodedJWT;
 
 @Path("/")
 public class BookingServiceREST {
@@ -94,7 +97,16 @@ public class BookingServiceREST {
             logger.fine("validate : customerid " + customerid);
         }
                 
-        return Jwts.parser().setSigningKey(secretKey).parseClaimsJws(jwtToken).getBody().getSubject().equals(customerid);
+        try {
+            JWTVerifier verifier = JWT.require(Algorithm.HMAC256(secretKey)).build(); //Cache?
+            
+            DecodedJWT jwt = verifier.verify(jwtToken);
+            return jwt.getSubject().equals(customerid);
+            
+        } catch (Exception exception) {
+            exception.printStackTrace();
+        }
+        return false;
     }
     
 
