@@ -15,9 +15,19 @@
 *******************************************************************************/
 package com.acmeair.web;
 
+import java.io.UnsupportedEncodingException;
+import java.security.InvalidKeyException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.Date;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.CookieParam;
@@ -55,10 +65,7 @@ public class BookingServiceREST {
     BookingService bs;
     
 	protected Logger logger =  Logger.getLogger(BookingServiceREST.class.getName());
-	
-	// TODO: Use actual shared keys instead of this secret 
-    private static final String secretKey = "secret";
-    
+
     // TRACK MILES OPTIONS
     private static final Boolean TRACK_REWARD_MILES = Boolean.valueOf((System.getenv("TRACK_REWARD_MILES") == null) ? "false" : System.getenv("TRACK_REWARD_MILES"));
    
@@ -68,14 +75,22 @@ public class BookingServiceREST {
     
     private static final String CUSTOMER_SERVICE_LOC = ((System.getenv("CUSTOMER_SERVICE") == null) ? "localhost:6379/customer" : System.getenv("CUSTOMER_SERVICE"));
     private static final String UPDATE_REWARD_PATH = "/updateCustomerTotalMiles";
-
+    
+    private static final Boolean SECURE_SERVICE_CALLS = Boolean.valueOf((System.getenv("SECURE_SERVICE_CALLS") == null) ? "false" : System.getenv("SECURE_SERVICE_CALLS"));
+    
+    // TODO: Use actual shared keys instead of this secret 
+    private final static String secretKey = "secret";
+    private static final String HMAC_ALGORITHM = "HmacSHA256";
+    private static final String SHA_256 = "SHA-256";
+    private static final String UTF8 = "UTF-8";
     
     private static WebTarget flightClientWebTarget = null;
     private static WebTarget customerClientWebTarget = null;
 
     static {
         System.out.println("TRACK_REWARD_MILES: " + TRACK_REWARD_MILES);
-                
+        System.out.println("SECURE_SERVICE_CALLS: " + SECURE_SERVICE_CALLS); 
+        
         // Set up JAX-RS Client. Recreating the WebTarget is painfully slow, so caching it here.
         // This works on Libertty 17.0.0.1+
         // If there is a better way to do this, please let me know!
@@ -89,26 +104,6 @@ public class BookingServiceREST {
         customerClient.property("thread.safe.client", Boolean.valueOf(true));
         customerClientWebTarget = customerClient.target("http://"+ CUSTOMER_SERVICE_LOC + UPDATE_REWARD_PATH);
     }
-    
-    
-	
-	private boolean validateJWT(String customerid, String jwtToken)    {    
-        if(logger.isLoggable(Level.FINE)){
-            logger.fine("validate : customerid " + customerid);
-        }
-                
-        try {
-            JWTVerifier verifier = JWT.require(Algorithm.HMAC256(secretKey)).build(); //Cache?
-            
-            DecodedJWT jwt = verifier.verify(jwtToken);
-            return jwt.getSubject().equals(customerid);
-            
-        } catch (Exception exception) {
-            exception.printStackTrace();
-        }
-        return false;
-    }
-    
 
 	@POST
 	@Consumes({"application/x-www-form-urlencoded"})
@@ -239,8 +234,32 @@ public class BookingServiceREST {
 	    
 	    Form form = new Form();
 	    form.param("flightSegment", flightSegId);
-	     
+	   	     
 	    Builder builder = flightClientWebTarget.request();
+	    
+	    if (SECURE_SERVICE_CALLS) { 
+            try {
+                Date date= new Date();
+                String body = "flightSegemnt=" + flightSegId;
+                String sigBody = buildHash(body.getBytes(UTF8));
+                
+                List<String> toHash = new ArrayList<String>();
+                toHash.add("POST");
+                toHash.add(GET_REWARD_PATH);
+                toHash.add(customerId);
+                toHash.add(date.toString());
+                toHash.add(sigBody);
+            
+                builder.header("acmeair-id", customerId);
+                builder.header("acmeair-date", date);
+                builder.header("acmeair-sig-body", sigBody);    
+                builder.header("acmeair-signature", buildHmac(toHash)); 
+                
+            } catch (Exception e) {
+                e.printStackTrace();
+            }  
+        }
+  
 	    AsyncInvoker asyncInvoker = builder.async();
 	    asyncInvoker.post(Entity.entity(form,MediaType.APPLICATION_FORM_URLENCODED_TYPE), new InvocationCallback<Response>() {
 	        
@@ -257,6 +276,30 @@ public class BookingServiceREST {
 	            WebTarget customerClientWebTargetFinal = customerClientWebTarget.path(customerId);
 	                
 	            Builder builder = customerClientWebTargetFinal.request();
+	            
+	            if (SECURE_SERVICE_CALLS) { 
+	                try {
+	                    Date date= new Date();
+	                    String body = "miles=" + miles;
+	                    String sigBody = buildHash(body.getBytes(UTF8));
+	                    
+	                    List<String> toHash = new ArrayList<String>();
+	                    toHash.add("POST");
+	                    toHash.add(UPDATE_REWARD_PATH);
+	                    toHash.add(customerId);
+	                    toHash.add(date.toString());
+	                    toHash.add(sigBody);
+	                
+	                    builder.header("acmeair-id", customerId);
+	                    builder.header("acmeair-date", date);
+	                    builder.header("acmeair-sig-body", sigBody);    
+	                    builder.header("acmeair-signature", buildHmac(toHash)); 
+	                    
+	                } catch (Exception e) {
+	                    e.printStackTrace();
+	                }  
+	            }
+	            
 	            builder.accept(MediaType.TEXT_PLAIN);       
 	            Response res = builder.post(Entity.entity(form,MediaType.APPLICATION_FORM_URLENCODED_TYPE), Response.class);
 	            res.readEntity(String.class); 
@@ -274,4 +317,41 @@ public class BookingServiceREST {
 	    return Response.ok("OK").build();
 	    
 	}  
+	
+	// ------ security stuff ------- 
+	private boolean validateJWT(String customerid, String jwtToken)    {    
+        if(logger.isLoggable(Level.FINE)){
+            logger.fine("validate : customerid " + customerid);
+        }
+                
+        try {
+            JWTVerifier verifier = JWT.require(Algorithm.HMAC256(secretKey)).build(); //Cache?
+            
+            DecodedJWT jwt = verifier.verify(jwtToken);
+            return jwt.getSubject().equals(customerid);
+            
+        } catch (Exception exception) {
+            exception.printStackTrace();
+        }
+        return false;
+    }
+	
+	private String buildHmac(List<String> stuffToHash)
+	        throws NoSuchAlgorithmException, InvalidKeyException, UnsupportedEncodingException {
+	    Mac mac = Mac.getInstance(HMAC_ALGORITHM);
+	    mac.init(new SecretKeySpec(secretKey.getBytes(UTF8), HMAC_ALGORITHM));
+
+	    for(String s: stuffToHash){
+	        mac.update(s.getBytes(UTF8));
+	    }
+	        
+	    return Base64.getEncoder().encodeToString( mac.doFinal() );
+	}
+
+	private String buildHash(byte[] data) throws NoSuchAlgorithmException, UnsupportedEncodingException{
+	    MessageDigest md = MessageDigest.getInstance(SHA_256);
+	    md.update(data);
+	    byte[] digest = md.digest();
+	    return Base64.getEncoder().encodeToString( digest );
+	}
 }
