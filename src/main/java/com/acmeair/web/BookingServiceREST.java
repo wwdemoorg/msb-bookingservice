@@ -15,6 +15,7 @@
 *******************************************************************************/
 package com.acmeair.web;
 
+import java.util.Date;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -42,11 +43,8 @@ import javax.ws.rs.core.Response.Status;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 
+import com.acmeair.securityutils.SecurityUtils;
 import com.acmeair.service.BookingService;
-import com.auth0.jwt.JWT;
-import com.auth0.jwt.JWTVerifier;
-import com.auth0.jwt.algorithms.Algorithm;
-import com.auth0.jwt.interfaces.DecodedJWT;
 
 @Path("/")
 public class BookingServiceREST {
@@ -54,11 +52,11 @@ public class BookingServiceREST {
     @Inject
     BookingService bs;
     
-	protected Logger logger =  Logger.getLogger(BookingServiceREST.class.getName());
-	
-	// TODO: Use actual shared keys instead of this secret 
-    private static final String secretKey = "secret";
+    @Inject
+    private SecurityUtils secUtils;
     
+	protected Logger logger =  Logger.getLogger(BookingServiceREST.class.getName());
+
     // TRACK MILES OPTIONS
     private static final Boolean TRACK_REWARD_MILES = Boolean.valueOf((System.getenv("TRACK_REWARD_MILES") == null) ? "false" : System.getenv("TRACK_REWARD_MILES"));
    
@@ -68,14 +66,18 @@ public class BookingServiceREST {
     
     private static final String CUSTOMER_SERVICE_LOC = ((System.getenv("CUSTOMER_SERVICE") == null) ? "localhost:6379/customer" : System.getenv("CUSTOMER_SERVICE"));
     private static final String UPDATE_REWARD_PATH = "/updateCustomerTotalMiles";
-
+    
+    private static final Boolean SECURE_USER_CALLS = Boolean.valueOf((System.getenv("SECURE_USER_CALLS") == null) ? "true" : System.getenv("SECURE_USER_CALLS"));
+    private static final Boolean SECURE_SERVICE_CALLS = Boolean.valueOf((System.getenv("SECURE_SERVICE_CALLS") == null) ? "false" : System.getenv("SECURE_SERVICE_CALLS"));
     
     private static WebTarget flightClientWebTarget = null;
     private static WebTarget customerClientWebTarget = null;
 
     static {
         System.out.println("TRACK_REWARD_MILES: " + TRACK_REWARD_MILES);
-                
+        System.out.println("SECURE_USER_CALLS: " + SECURE_USER_CALLS); 
+        System.out.println("SECURE_SERVICE_CALLS: " + SECURE_SERVICE_CALLS); 
+        
         // Set up JAX-RS Client. Recreating the WebTarget is painfully slow, so caching it here.
         // This works on Libertty 17.0.0.1+
         // If there is a better way to do this, please let me know!
@@ -89,26 +91,6 @@ public class BookingServiceREST {
         customerClient.property("thread.safe.client", Boolean.valueOf(true));
         customerClientWebTarget = customerClient.target("http://"+ CUSTOMER_SERVICE_LOC + UPDATE_REWARD_PATH);
     }
-    
-    
-	
-	private boolean validateJWT(String customerid, String jwtToken)    {    
-        if(logger.isLoggable(Level.FINE)){
-            logger.fine("validate : customerid " + customerid);
-        }
-                
-        try {
-            JWTVerifier verifier = JWT.require(Algorithm.HMAC256(secretKey)).build(); //Cache?
-            
-            DecodedJWT jwt = verifier.verify(jwtToken);
-            return jwt.getSubject().equals(customerid);
-            
-        } catch (Exception exception) {
-            exception.printStackTrace();
-        }
-        return false;
-    }
-    
 
 	@POST
 	@Consumes({"application/x-www-form-urlencoded"})
@@ -124,7 +106,7 @@ public class BookingServiceREST {
 	        @CookieParam("jwt_token") String jwtToken) {
 		try {
 		    // make sure the user isn't trying to bookflights for someone else
-            if (!validateJWT(userid,jwtToken)) {
+            if (SECURE_USER_CALLS  && !secUtils.validateJWT(userid,jwtToken)) {
                 return Response.status(Response.Status.FORBIDDEN).build();
             }
 		    
@@ -162,7 +144,7 @@ public class BookingServiceREST {
 			@CookieParam("jwt_token") String jwtToken) {
 		try {
 		    //  make sure the user isn't trying to bookflights for someone else
-            if (!validateJWT(userid, jwtToken)) {
+            if(SECURE_USER_CALLS  && !secUtils.validateJWT(userid, jwtToken)) {
                 return Response.status(Response.Status.FORBIDDEN).build();
             }
 			return Response.ok(bs.getBooking(userid, number)).build();
@@ -180,7 +162,7 @@ public class BookingServiceREST {
 		
 		try {
 		    // make sure the user isn't trying to bookflights for someone else
-            if (!validateJWT(user,jwtToken)) {
+            if (SECURE_USER_CALLS  && !secUtils.validateJWT(user,jwtToken)) {
                 return Response.status(Response.Status.FORBIDDEN).build();
             }
 			return  Response.ok(bs.getBookingsByUser(user).toString()).build();
@@ -201,7 +183,7 @@ public class BookingServiceREST {
 			@CookieParam("jwt_token") String jwtToken) {
 		try {
 		    //   make sure the user isn't trying to bookflights for someone else
-            if (!validateJWT(userid,jwtToken)) {
+            if (SECURE_USER_CALLS  && !secUtils.validateJWT(userid,jwtToken)) {
                 return Response.status(Response.Status.FORBIDDEN).build();
             }
  
@@ -231,6 +213,11 @@ public class BookingServiceREST {
 		}
 	}
 	
+	@GET
+	public Response checkStatus() {
+	    return Response.ok("OK").build();     
+	} 
+	
 	private void updateRewardMiles(String customerId, String flightSegId, boolean add) {
 	    // Cached the WebTarget above to avoid the huge creation overhead.
 	    // Call the flight service to get the miles for the flight segment.
@@ -239,8 +226,26 @@ public class BookingServiceREST {
 	    
 	    Form form = new Form();
 	    form.param("flightSegment", flightSegId);
-	     
+	   	     
 	    Builder builder = flightClientWebTarget.request();
+	    
+	    if (SECURE_SERVICE_CALLS) { 
+            try {
+                Date date= new Date();
+                String body = "flightSegemnt=" + flightSegId;
+                String sigBody = secUtils.buildHash(body);
+                String signature = secUtils.buildHmac("POST",GET_REWARD_PATH,customerId,date.toString(),sigBody); 
+            
+                builder.header("acmeair-id", customerId);
+                builder.header("acmeair-date", date);
+                builder.header("acmeair-sig-body", sigBody);    
+                builder.header("acmeair-signature", signature); 
+                
+            } catch (Exception e) {
+                e.printStackTrace();
+            }  
+        }
+  
 	    AsyncInvoker asyncInvoker = builder.async();
 	    asyncInvoker.post(Entity.entity(form,MediaType.APPLICATION_FORM_URLENCODED_TYPE), new InvocationCallback<Response>() {
 	        
@@ -257,6 +262,24 @@ public class BookingServiceREST {
 	            WebTarget customerClientWebTargetFinal = customerClientWebTarget.path(customerId);
 	                
 	            Builder builder = customerClientWebTargetFinal.request();
+	            
+	            if (SECURE_SERVICE_CALLS) { 
+	                try {
+	                    Date date= new Date();
+	                    String body = "miles=" + miles;
+	                    String sigBody = secUtils.buildHash(body);            
+	                    String signature = secUtils.buildHmac("POST",UPDATE_REWARD_PATH,customerId,date.toString(),sigBody); 
+	                    	                
+	                    builder.header("acmeair-id", customerId);
+	                    builder.header("acmeair-date", date);
+	                    builder.header("acmeair-sig-body", sigBody);    
+	                    builder.header("acmeair-signature", signature); 
+	                    
+	                } catch (Exception e) {
+	                    e.printStackTrace();
+	                }  
+	            }
+	            
 	            builder.accept(MediaType.TEXT_PLAIN);       
 	            Response res = builder.post(Entity.entity(form,MediaType.APPLICATION_FORM_URLENCODED_TYPE), Response.class);
 	            res.readEntity(String.class); 
@@ -267,11 +290,5 @@ public class BookingServiceREST {
 	            throwable.printStackTrace();
 	        }
 	    });
-	}	
-	
-	@GET
-	public Response checkStatus() {
-	    return Response.ok("OK").build();
-	    
-	}  
+	}	 
 }
