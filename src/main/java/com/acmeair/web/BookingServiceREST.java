@@ -67,6 +67,7 @@ public class BookingServiceREST {
     private static final String CUSTOMER_SERVICE_LOC = ((System.getenv("CUSTOMER_SERVICE") == null) ? "localhost:6379/customer" : System.getenv("CUSTOMER_SERVICE"));
     private static final String UPDATE_REWARD_PATH = "/updateCustomerTotalMiles";
     
+    private static final Boolean SECURE_USER_CALLS = Boolean.valueOf((System.getenv("SECURE_USER_CALLS") == null) ? "true" : System.getenv("SECURE_USER_CALLS"));
     private static final Boolean SECURE_SERVICE_CALLS = Boolean.valueOf((System.getenv("SECURE_SERVICE_CALLS") == null) ? "false" : System.getenv("SECURE_SERVICE_CALLS"));
     
     private static WebTarget flightClientWebTarget = null;
@@ -74,6 +75,7 @@ public class BookingServiceREST {
 
     static {
         System.out.println("TRACK_REWARD_MILES: " + TRACK_REWARD_MILES);
+        System.out.println("SECURE_USER_CALLS: " + SECURE_USER_CALLS); 
         System.out.println("SECURE_SERVICE_CALLS: " + SECURE_SERVICE_CALLS); 
         
         // Set up JAX-RS Client. Recreating the WebTarget is painfully slow, so caching it here.
@@ -104,7 +106,7 @@ public class BookingServiceREST {
 	        @CookieParam("jwt_token") String jwtToken) {
 		try {
 		    // make sure the user isn't trying to bookflights for someone else
-            if (!secUtils.validateJWT(userid,jwtToken)) {
+            if (SECURE_USER_CALLS  && !secUtils.validateJWT(userid,jwtToken)) {
                 return Response.status(Response.Status.FORBIDDEN).build();
             }
 		    
@@ -142,7 +144,7 @@ public class BookingServiceREST {
 			@CookieParam("jwt_token") String jwtToken) {
 		try {
 		    //  make sure the user isn't trying to bookflights for someone else
-            if (!secUtils.validateJWT(userid, jwtToken)) {
+            if(SECURE_USER_CALLS  && !secUtils.validateJWT(userid, jwtToken)) {
                 return Response.status(Response.Status.FORBIDDEN).build();
             }
 			return Response.ok(bs.getBooking(userid, number)).build();
@@ -160,7 +162,7 @@ public class BookingServiceREST {
 		
 		try {
 		    // make sure the user isn't trying to bookflights for someone else
-            if (!secUtils.validateJWT(user,jwtToken)) {
+            if (SECURE_USER_CALLS  && !secUtils.validateJWT(user,jwtToken)) {
                 return Response.status(Response.Status.FORBIDDEN).build();
             }
 			return  Response.ok(bs.getBookingsByUser(user).toString()).build();
@@ -181,7 +183,7 @@ public class BookingServiceREST {
 			@CookieParam("jwt_token") String jwtToken) {
 		try {
 		    //   make sure the user isn't trying to bookflights for someone else
-            if (!secUtils.validateJWT(userid,jwtToken)) {
+            if (SECURE_USER_CALLS  && !secUtils.validateJWT(userid,jwtToken)) {
                 return Response.status(Response.Status.FORBIDDEN).build();
             }
  
