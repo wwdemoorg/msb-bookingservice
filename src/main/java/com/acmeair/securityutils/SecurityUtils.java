@@ -26,8 +26,9 @@ public class SecurityUtils {
     
     protected Logger logger =  Logger.getLogger(SecurityUtils.class.getName());
     
-    // TODO: Simple secret for now
-    private final static String secretKey = "secret";
+    // TODO: Hardcode for now
+    private final static String secretKey = "acmeairsecret128";
+    
     private static final String HMAC_ALGORITHM = "HmacSHA256";
     private static final String SHA_256 = "SHA-256";
     private static final String UTF8 = "UTF-8";
