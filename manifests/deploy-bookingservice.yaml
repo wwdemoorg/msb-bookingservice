@@ -12,10 +12,7 @@ spec:
       containers:
       - env:
         - name: MONGO_HOST
-          valueFrom:
-            configMapKeyRef:
-              name: mongo
-              key: MONGO_HOST
+          value: booking-db
         name: bookingservice-java
         image: bookingservice-java:latest
         ports:
@@ -42,7 +39,7 @@ spec:
             - key: keystore.xml
               path: defaults/keystore.xml
             - key: logging.xml
-              path: defaults/logging.xml    
+              path: defaults/logging.xml
 ---
 apiVersion: v1
 kind: Service
@@ -54,3 +51,46 @@ spec:
     - port: 9080
   selector:
     name: booking-deployment
+---
+##### Booking Database  #####
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    service: booking-db
+  name: booking-db
+spec:
+  ports:
+  - name: "27017"
+    port: 27017
+    protocol: TCP
+    targetPort: 27017
+  selector:
+    service: booking-db
+status:
+  loadBalancer: {}
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  name: booking-db
+spec:
+  replicas: 1
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        service: booking-db
+    spec:
+      containers:
+      - image: mongo
+        name: booking-db
+        ports:
+        - containerPort: 27017
+          protocol: TCP
+        resources: {}
+      restartPolicy: Always
+status: {}
