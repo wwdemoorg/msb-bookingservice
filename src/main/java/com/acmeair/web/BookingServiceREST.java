@@ -444,6 +444,9 @@ public class BookingServiceREST {
             
                 @Override
                 public void completed(Response response) {
+                    
+                    c.close();
+                    
                     String miles = response.readEntity(String.class); 
                     if (!add) {
                         miles = ((Integer)(Integer.parseInt(miles) * -1)).toString();
@@ -479,6 +482,8 @@ public class BookingServiceREST {
                     builder.accept(MediaType.TEXT_PLAIN);       
                     Response res = builder.post(Entity.entity(form,MediaType.APPLICATION_FORM_URLENCODED_TYPE), Response.class);
                     res.readEntity(String.class); 
+                    
+                    c.close();
                 }
                 
                 @Override
