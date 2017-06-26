@@ -54,14 +54,14 @@ import com.acmeair.service.BookingService;
 
 @Path("/")
 public class BookingServiceREST {
-	
+    
     @Inject
     BookingService bs;
     
     @Inject
     private SecurityUtils secUtils;
     
-	protected Logger logger =  Logger.getLogger(BookingServiceREST.class.getName());
+    protected Logger logger =  Logger.getLogger(BookingServiceREST.class.getName());
 
     // TRACK MILES OPTIONS
     private static final Boolean TRACK_REWARD_MILES = Boolean.valueOf((System.getenv("TRACK_REWARD_MILES") == null) ? "false" : System.getenv("TRACK_REWARD_MILES"));
@@ -77,7 +77,8 @@ public class BookingServiceREST {
     private static final Boolean SECURE_SERVICE_CALLS = Boolean.valueOf((System.getenv("SECURE_SERVICE_CALLS") == null) ? "false" : System.getenv("SECURE_SERVICE_CALLS"));
     
     private static final String SERVICE_INVOCATION_HTTP  = "http";
-    private static final String SERVICE_INVOCATION_JAXRS = "jaxrs"; 
+    private static final String SERVICE_INVOCATION_JAXRS = "jaxrs";
+    private static final String SERVICE_INVOCATION_JAXRS_NO_CACHE = "jaxrs_no_cache"; 
     private static final String SERVICE_INVOCATION_TYPE  = ((System.getenv("SERVICE_INVOCATION_TYPE") == null) ? SERVICE_INVOCATION_JAXRS : System.getenv("SERVICE_INVOCATION_TYPE"));
     
     private static WebTarget flightClientWebTarget = null;
@@ -88,112 +89,99 @@ public class BookingServiceREST {
         System.out.println("SECURE_USER_CALLS: " + SECURE_USER_CALLS); 
         System.out.println("SECURE_SERVICE_CALLS: " + SECURE_SERVICE_CALLS); 
         System.out.println("SERVICE_INVOCATION_TYPE: " + SERVICE_INVOCATION_TYPE); 
-        
-        // Set up JAX-RS Client. Recreating the WebTarget is painfully slow, so caching it here.
-        // This works on Libertty 17.0.0.1+
-        // If there is a better way to do this, please let me know!
-        Client flightClient = ClientBuilder.newClient();
-        flightClient.property("http.maxConnections", Integer.valueOf(50));
-        flightClient.property("thread.safe.client", Boolean.valueOf(true));
-        flightClientWebTarget = flightClient.target("http://"+ FLIGHT_SERVICE_LOC + GET_REWARD_PATH);
-        
-        Client customerClient = ClientBuilder.newClient();
-        customerClient.property("http.maxConnections", Integer.valueOf(50));
-        customerClient.property("thread.safe.client", Boolean.valueOf(true));
-        customerClientWebTarget = customerClient.target("http://"+ CUSTOMER_SERVICE_LOC + UPDATE_REWARD_PATH);
     }
 
-	@POST
-	@Consumes({"application/x-www-form-urlencoded"})
-	@Path("/bookflights")
-	@Produces("text/plain")
-	public /*BookingInfo*/ Response bookFlights(
-			@FormParam("userid") String userid,
-			@FormParam("toFlightId") String toFlightId,
-			@FormParam("toFlightSegId") String toFlightSegId,
-			@FormParam("retFlightId") String retFlightId,
-			@FormParam("retFlightSegId") String retFlightSegId,
-			@FormParam("oneWayFlight") boolean oneWay,
-	        @CookieParam("jwt_token") String jwtToken) {
-		try {
-		    // make sure the user isn't trying to bookflights for someone else
+    @POST
+    @Consumes({"application/x-www-form-urlencoded"})
+    @Path("/bookflights")
+    @Produces("text/plain")
+    public /*BookingInfo*/ Response bookFlights(
+            @FormParam("userid") String userid,
+            @FormParam("toFlightId") String toFlightId,
+            @FormParam("toFlightSegId") String toFlightSegId,
+            @FormParam("retFlightId") String retFlightId,
+            @FormParam("retFlightSegId") String retFlightSegId,
+            @FormParam("oneWayFlight") boolean oneWay,
+            @CookieParam("jwt_token") String jwtToken) {
+        try {
+            // make sure the user isn't trying to bookflights for someone else
             if (SECURE_USER_CALLS  && !secUtils.validateJWT(userid,jwtToken)) {
                 return Response.status(Response.Status.FORBIDDEN).build();
             }
-		    
-			String bookingIdTo = bs.bookFlight(userid, toFlightSegId, toFlightId);
-			if (TRACK_REWARD_MILES) {
-			    updateRewardMiles(userid, toFlightSegId, true);
-			}
-			
-			String bookingInfo = "";
-			
-			String bookingIdReturn = null;
-			if (!oneWay) {
-				bookingIdReturn = bs.bookFlight(userid, retFlightSegId, retFlightId);
-				if (TRACK_REWARD_MILES) {
-				    updateRewardMiles(userid, retFlightSegId, true);
-				}				
-				bookingInfo = "{\"oneWay\":false,\"returnBookingId\":\"" + bookingIdReturn + "\",\"departBookingId\":\"" + bookingIdTo + "\"}";
-			} else {
-				bookingInfo = "{\"oneWay\":true,\"departBookingId\":\"" + bookingIdTo + "\"}";
-			}
-			return Response.ok(bookingInfo).build();
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			return Response.status(Status.INTERNAL_SERVER_ERROR).build();
-		}
-	}
-		
+            
+            String bookingIdTo = bs.bookFlight(userid, toFlightSegId, toFlightId);
+            if (TRACK_REWARD_MILES) {
+                updateRewardMiles(userid, toFlightSegId, true);
+            }
+            
+            String bookingInfo = "";
+            
+            String bookingIdReturn = null;
+            if (!oneWay) {
+                bookingIdReturn = bs.bookFlight(userid, retFlightSegId, retFlightId);
+                if (TRACK_REWARD_MILES) {
+                    updateRewardMiles(userid, retFlightSegId, true);
+                }               
+                bookingInfo = "{\"oneWay\":false,\"returnBookingId\":\"" + bookingIdReturn + "\",\"departBookingId\":\"" + bookingIdTo + "\"}";
+            } else {
+                bookingInfo = "{\"oneWay\":true,\"departBookingId\":\"" + bookingIdTo + "\"}";
+            }
+            return Response.ok(bookingInfo).build();
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            return Response.status(Status.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+        
     @GET
-	@Path("/bybookingnumber/{userid}/{number}")
-	@Produces("text/plain")
-	public Response getBookingByNumber(
-			@PathParam("number") String number,
-			@PathParam("userid") String userid,
-			@CookieParam("jwt_token") String jwtToken) {
-		try {
-		    //  make sure the user isn't trying to bookflights for someone else
+    @Path("/bybookingnumber/{userid}/{number}")
+    @Produces("text/plain")
+    public Response getBookingByNumber(
+            @PathParam("number") String number,
+            @PathParam("userid") String userid,
+            @CookieParam("jwt_token") String jwtToken) {
+        try {
+            //  make sure the user isn't trying to bookflights for someone else
             if(SECURE_USER_CALLS  && !secUtils.validateJWT(userid, jwtToken)) {
                 return Response.status(Response.Status.FORBIDDEN).build();
             }
-			return Response.ok(bs.getBooking(userid, number)).build();
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			return null;
-		}
-	}
+            return Response.ok(bs.getBooking(userid, number)).build();
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
 
-	@GET
-	@Path("/byuser/{user}")
-	@Produces("text/plain")
-	public Response getBookingsByUser(@PathParam("user") String user,@CookieParam("jwt_token") String jwtToken) {
-		
-		try {
-		    // make sure the user isn't trying to bookflights for someone else
+    @GET
+    @Path("/byuser/{user}")
+    @Produces("text/plain")
+    public Response getBookingsByUser(@PathParam("user") String user,@CookieParam("jwt_token") String jwtToken) {
+        
+        try {
+            // make sure the user isn't trying to bookflights for someone else
             if (SECURE_USER_CALLS  && !secUtils.validateJWT(user,jwtToken)) {
                 return Response.status(Response.Status.FORBIDDEN).build();
             }
-			return  Response.ok(bs.getBookingsByUser(user).toString()).build();
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			return null;
-		}
-	}
+            return  Response.ok(bs.getBookingsByUser(user).toString()).build();
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
 
-	@POST
-	@Consumes({"application/x-www-form-urlencoded"})
-	@Path("/cancelbooking")
-	@Produces("text/plain")
-	public Response cancelBookingsByNumber(
-			@FormParam("number") String number,
-			@FormParam("userid") String userid,
-			@CookieParam("jwt_token") String jwtToken) {
-		try {
-		    //   make sure the user isn't trying to bookflights for someone else
+    @POST
+    @Consumes({"application/x-www-form-urlencoded"})
+    @Path("/cancelbooking")
+    @Produces("text/plain")
+    public Response cancelBookingsByNumber(
+            @FormParam("number") String number,
+            @FormParam("userid") String userid,
+            @CookieParam("jwt_token") String jwtToken) {
+        try {
+            //   make sure the user isn't trying to bookflights for someone else
             if (SECURE_USER_CALLS  && !secUtils.validateJWT(userid,jwtToken)) {
                 return Response.status(Response.Status.FORBIDDEN).build();
             }
@@ -215,102 +203,110 @@ public class BookingServiceREST {
                 bs.cancelBooking(userid, number);
             }
             
-			return Response.ok("booking " + number + " deleted.").build();
-					
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			return Response.status(Status.INTERNAL_SERVER_ERROR).build();
-		}
-	}
-	
-	@GET
-	public Response checkStatus() {
-	    return Response.ok("OK").build();     
-	} 
-	
-	private void updateRewardMiles(String customerId, String flightSegId, boolean add) {
-	    
-	    if (SERVICE_INVOCATION_TYPE.equals(SERVICE_INVOCATION_JAXRS)) {
-	    
-	        // Cached the WebTarget above to avoid the huge creation overhead.
-	        // Call the flight service to get the miles for the flight segment.
-	        //   Do this call asynchronously to return control back to the client.
-	        // Then call the customer service to update the total_miles
-	    
-	        Form form = new Form();
-	        form.param("flightSegment", flightSegId);
-	   	     
-	        Builder builder = flightClientWebTarget.request();
-	    
-	        if (SECURE_SERVICE_CALLS) { 
-	            try {
-	                Date date= new Date();
-	                String body = "flightSegment=" + flightSegId;
-	                String sigBody = secUtils.buildHash(body);
-	                String signature = secUtils.buildHmac("POST",GET_REWARD_PATH,customerId,date.toString(),sigBody); 
+            return Response.ok("booking " + number + " deleted.").build();
+                    
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            return Response.status(Status.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+    
+    @GET
+    public Response checkStatus() {
+        return Response.ok("OK").build();     
+    } 
+    
+    private void updateRewardMiles(String customerId, String flightSegId, boolean add) {
+        
+        if (SERVICE_INVOCATION_TYPE.equals(SERVICE_INVOCATION_JAXRS)) {
+        
+            // Cached the WebTarget above to avoid the huge creation overhead.
+            // Call the flight service to get the miles for the flight segment.
+            //   Do this call asynchronously to return control back to the client.
+            // Then call the customer service to update the total_miles
+        
+            Form form = new Form();
+            form.param("flightSegment", flightSegId);
+             
+            if (flightClientWebTarget==null) {
+                initializeFlightWebTarget();
+            }
             
-	                builder.header("acmeair-id", customerId);
-	                builder.header("acmeair-date", date.toString());
-	                builder.header("acmeair-sig-body", sigBody);    
-	                builder.header("acmeair-signature", signature); 
+            Builder builder = flightClientWebTarget.request();
+        
+            if (SECURE_SERVICE_CALLS) { 
+                try {
+                    Date date= new Date();
+                    String body = "flightSegment=" + flightSegId;
+                    String sigBody = secUtils.buildHash(body);
+                    String signature = secUtils.buildHmac("POST",GET_REWARD_PATH,customerId,date.toString(),sigBody); 
+            
+                    builder.header("acmeair-id", customerId);
+                    builder.header("acmeair-date", date.toString());
+                    builder.header("acmeair-sig-body", sigBody);    
+                    builder.header("acmeair-signature", signature); 
                 
-	            } catch (Exception e) {
-	                e.printStackTrace();
-	            }  
-	        }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }  
+            }
   
-	        AsyncInvoker asyncInvoker = builder.async();
-	        asyncInvoker.post(Entity.entity(form,MediaType.APPLICATION_FORM_URLENCODED_TYPE), new InvocationCallback<Response>() {
-	        
-	            @Override
-	            public void completed(Response response) {
-	                String miles = response.readEntity(String.class); 
-	                if (!add) {
-	                    miles = ((Integer)(Integer.parseInt(miles) * -1)).toString();
-	                }
-	                                        
-	                Form form = new Form();
-	                form.param("miles", miles);
-	                
-	                WebTarget customerClientWebTargetFinal = customerClientWebTarget.path(customerId);
-	                
-	                Builder builder = customerClientWebTargetFinal.request();
-	            
-	                if (SECURE_SERVICE_CALLS) { 
-	                    try {
-	                        Date date= new Date();
-	                        String body = "miles=" + miles;
-	                        String sigBody = secUtils.buildHash(body);            
-	                        String signature = secUtils.buildHmac("POST",UPDATE_REWARD_PATH,customerId,date.toString(),sigBody); 
-	                    	                    
-	                        builder.header("acmeair-id", customerId);
-	                        builder.header("acmeair-date", date.toString());
-	                        builder.header("acmeair-sig-body", sigBody);    
-	                        builder.header("acmeair-signature", signature); 
-	                    
-	                    } catch (Exception e) {
-	                        e.printStackTrace();
-	                    }  
-	                }
-	            
-	                builder.accept(MediaType.TEXT_PLAIN);       
-	                Response res = builder.post(Entity.entity(form,MediaType.APPLICATION_FORM_URLENCODED_TYPE), Response.class);
-	                res.readEntity(String.class); 
-	            }
-	            
-	            @Override
-	            public void failed(Throwable throwable) {
-	                throwable.printStackTrace();
-	            }
-	        });
-	        
-	    } else if (SERVICE_INVOCATION_TYPE.equals(SERVICE_INVOCATION_HTTP)) {
-	        // TODO: Multi-threaded JAX-RS client works on Liberty in 17.0.0.1+, but does not seem to work on wildfly 10.1
-	        // out of the box, so adding this http call for now. Will investigate.
-	        // The JAX-RS call client call above has the advantage of being asynchronous.
-	        
-	        // Set maxConnections - this seems to help with keepalives/running out of sockets with a high load.
+            AsyncInvoker asyncInvoker = builder.async();
+            asyncInvoker.post(Entity.entity(form,MediaType.APPLICATION_FORM_URLENCODED_TYPE), new InvocationCallback<Response>() {
+            
+                @Override
+                public void completed(Response response) {
+                    String miles = response.readEntity(String.class); 
+                    if (!add) {
+                        miles = ((Integer)(Integer.parseInt(miles) * -1)).toString();
+                    }
+                      
+                    if (customerClientWebTarget==null) {
+                        initializeCustomerWebTarget();
+                    }
+                    
+                    Form form = new Form();
+                    form.param("miles", miles);
+
+                    WebTarget customerClientWebTargetFinal = customerClientWebTarget.path(customerId);
+                    
+                    Builder builder = customerClientWebTargetFinal.request();
+                
+                    if (SECURE_SERVICE_CALLS) { 
+                        try {
+                            Date date= new Date();
+                            String body = "miles=" + miles;
+                            String sigBody = secUtils.buildHash(body);            
+                            String signature = secUtils.buildHmac("POST",UPDATE_REWARD_PATH,customerId,date.toString(),sigBody); 
+                                                
+                            builder.header("acmeair-id", customerId);
+                            builder.header("acmeair-date", date.toString());
+                            builder.header("acmeair-sig-body", sigBody);    
+                            builder.header("acmeair-signature", signature); 
+                        
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }  
+                    }
+                
+                    builder.accept(MediaType.TEXT_PLAIN);       
+                    Response res = builder.post(Entity.entity(form,MediaType.APPLICATION_FORM_URLENCODED_TYPE), Response.class);
+                    res.readEntity(String.class); 
+                }
+                
+                @Override
+                public void failed(Throwable throwable) {
+                    throwable.printStackTrace();
+                }
+            });
+            
+        } else if (SERVICE_INVOCATION_TYPE.equals(SERVICE_INVOCATION_HTTP)) {
+            // TODO: Multi-threaded JAX-RS client works on Liberty in 17.0.0.1+, but does not seem to work on wildfly 10.1
+            // out of the box, so adding this http call for now. Will investigate.
+            // The JAX-RS call client call above has the advantage of being asynchronous.
+            
+            // Set maxConnections - this seems to help with keepalives/running out of sockets with a high load.
             if (System.getProperty("http.maxConnections")==null) {
                 System.setProperty("http.maxConnections", "50");
             }
@@ -414,9 +410,109 @@ public class BookingServiceREST {
                 e.printStackTrace();
             }
             
-	        
-	            
-	    }
-	         
-	}	 
+            
+                
+        } else  if (SERVICE_INVOCATION_TYPE.equals(SERVICE_INVOCATION_JAXRS_NO_CACHE)) {
+                
+            Form form = new Form();
+            form.param("flightSegment", flightSegId);
+             
+            Client c = ClientBuilder.newClient();
+            WebTarget wt = c.target("http://"+ FLIGHT_SERVICE_LOC + GET_REWARD_PATH);
+            
+            Builder builder = wt.request();
+        
+            if (SECURE_SERVICE_CALLS) { 
+                try {
+                    Date date= new Date();
+                    String body = "flightSegment=" + flightSegId;
+                    String sigBody = secUtils.buildHash(body);
+                    String signature = secUtils.buildHmac("POST",GET_REWARD_PATH,customerId,date.toString(),sigBody); 
+            
+                    builder.header("acmeair-id", customerId);
+                    builder.header("acmeair-date", date.toString());
+                    builder.header("acmeair-sig-body", sigBody);    
+                    builder.header("acmeair-signature", signature); 
+                
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }  
+            }
+  
+            AsyncInvoker asyncInvoker = builder.async();
+            asyncInvoker.post(Entity.entity(form,MediaType.APPLICATION_FORM_URLENCODED_TYPE), new InvocationCallback<Response>() {
+            
+                @Override
+                public void completed(Response response) {
+                    String miles = response.readEntity(String.class); 
+                    if (!add) {
+                        miles = ((Integer)(Integer.parseInt(miles) * -1)).toString();
+                    }
+                     
+                    Client c = ClientBuilder.newClient();
+                    WebTarget wt = c.target("http://"+ CUSTOMER_SERVICE_LOC + UPDATE_REWARD_PATH);                    
+                    
+                    Form form = new Form();
+                    form.param("miles", miles);
+
+                    WebTarget customerClientWebTargetFinal = wt.path(customerId);
+                    
+                    Builder builder = customerClientWebTargetFinal.request();
+                
+                    if (SECURE_SERVICE_CALLS) { 
+                        try {
+                            Date date= new Date();
+                            String body = "miles=" + miles;
+                            String sigBody = secUtils.buildHash(body);            
+                            String signature = secUtils.buildHmac("POST",UPDATE_REWARD_PATH,customerId,date.toString(),sigBody); 
+                                                
+                            builder.header("acmeair-id", customerId);
+                            builder.header("acmeair-date", date.toString());
+                            builder.header("acmeair-sig-body", sigBody);    
+                            builder.header("acmeair-signature", signature); 
+                        
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }  
+                    }
+                
+                    builder.accept(MediaType.TEXT_PLAIN);       
+                    Response res = builder.post(Entity.entity(form,MediaType.APPLICATION_FORM_URLENCODED_TYPE), Response.class);
+                    res.readEntity(String.class); 
+                }
+                
+                @Override
+                public void failed(Throwable throwable) {
+                    throwable.printStackTrace();
+                }
+            });
+            
+        } 
+             
+    }    
+        
+    /** Set up JAX-RS Client/WebTarget. Recreating the WebTarget is painfully slow, so caching it here.
+     * This works on Liberty 17.0.0.1+. If there is a better way to do this, please let me know!
+    **/
+    private static void initializeFlightWebTarget() {
+            
+        Client client = ClientBuilder.newClient();
+
+        // liberty specific
+        client.property("http.maxConnections", Integer.valueOf(50));
+        client.property("thread.safe.client", Boolean.valueOf(true));
+            
+        flightClientWebTarget = client.target("http://"+ FLIGHT_SERVICE_LOC + GET_REWARD_PATH);
+    }
+    
+    private static void initializeCustomerWebTarget() {
+                     
+        Client client = ClientBuilder.newClient();
+
+        // liberty specific
+        client.property("http.maxConnections", Integer.valueOf(50));
+        client.property("thread.safe.client", Boolean.valueOf(true));
+            
+        customerClientWebTarget = client.target("http://"+ CUSTOMER_SERVICE_LOC + UPDATE_REWARD_PATH);
+    }   
 }
