@@ -17,6 +17,7 @@ package com.acmeair.web;
 
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -42,6 +43,7 @@ import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.Form;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
@@ -219,76 +221,64 @@ public class BookingServiceREST {
     
     private void updateRewardMiles(String customerId, String flightSegId, boolean add) {
         
-        if (SERVICE_INVOCATION_TYPE.equals(SERVICE_INVOCATION_JAXRS)) {
+        if (SERVICE_INVOCATION_TYPE.equals(SERVICE_INVOCATION_HTTP)) {
+            // TODO: Multi-threaded JAX-RS client works on Liberty in 17.0.0.1+, but does not seem to work on wildfly 10.1
+            // out of the box, so adding this http call for now. Will investigate.
+            // The JAX-RS client call below has the advantage of being asynchronous.
+            
+            // Set maxConnections - this seems to help with keepalives/running out of sockets with a high load.
+            if (System.getProperty("http.maxConnections")==null) {
+                System.setProperty("http.maxConnections", "50");
+            }
+                       
+            String flightUrl = "http://"+ FLIGHT_SERVICE_LOC + GET_REWARD_PATH;
+            String flightParameters="flightSegment=" + flightSegId;  
+                
+            HttpURLConnection flightConn = createHttpURLConnection(flightUrl, flightParameters, customerId, GET_REWARD_PATH);
+            String output = doHttpURLCall(flightConn, flightParameters);                       
+            Long milesLong = (Long)JSONValue.parse(output);
+            String miles = milesLong.toString();
         
-            // Cached the WebTarget above to avoid the huge creation overhead.
-            // Call the flight service to get the miles for the flight segment.
-            //   Do this call asynchronously to return control back to the client.
-            // Then call the customer service to update the total_miles
+            if (!add) {
+                miles = ((Integer)(Integer.parseInt(miles) * -1)).toString();
+            }
+                
+            String customerUrl = "http://"+ CUSTOMER_SERVICE_LOC + UPDATE_REWARD_PATH + "/" + customerId;
+            String customerParameters="miles=" + miles;
+                
+            HttpURLConnection customerConn = createHttpURLConnection(customerUrl, customerParameters, customerId, UPDATE_REWARD_PATH);
+            doHttpURLCall(customerConn, customerParameters); 
+
+        } else if (SERVICE_INVOCATION_TYPE.equals(SERVICE_INVOCATION_JAXRS)) {
         
-            Form form = new Form();
-            form.param("flightSegment", flightSegId);
-             
+            // Cache the WebTargets to avoid the huge creation overhead.
             if (flightClientWebTarget==null) {
                 initializeFlightWebTarget();
             }
-            
-            Builder builder = flightClientWebTarget.request();
-        
-            if (SECURE_SERVICE_CALLS) { 
-                try {
-                    Date date= new Date();
-                    String body = "flightSegment=" + flightSegId;
-                    String sigBody = secUtils.buildHash(body);
-                    String signature = secUtils.buildHmac("POST",GET_REWARD_PATH,customerId,date.toString(),sigBody); 
-            
-                    builder.header("acmeair-id", customerId);
-                    builder.header("acmeair-date", date.toString());
-                    builder.header("acmeair-sig-body", sigBody);    
-                    builder.header("acmeair-signature", signature); 
-                
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }  
+            if (customerClientWebTarget==null) {
+                initializeCustomerWebTarget();
             }
-  
+            
+            Form form = new Form("flightSegment", flightSegId);          
+            Builder builder = createInvocationBuilder(flightClientWebTarget, form, customerId,GET_REWARD_PATH);      
             AsyncInvoker asyncInvoker = builder.async();
+            
+            // Call the flight service to get the miles for the flight segment.
+            // Do this call asynchronously to return control back to the client.
+            // Then call the customer service to update the total_miles
             asyncInvoker.post(Entity.entity(form,MediaType.APPLICATION_FORM_URLENCODED_TYPE), new InvocationCallback<Response>() {
             
                 @Override
                 public void completed(Response response) {
+                    
                     String miles = response.readEntity(String.class); 
                     if (!add) {
                         miles = ((Integer)(Integer.parseInt(miles) * -1)).toString();
                     }
-                      
-                    if (customerClientWebTarget==null) {
-                        initializeCustomerWebTarget();
-                    }
-                    
-                    Form form = new Form();
-                    form.param("miles", miles);
-
+  
+                    Form form = new Form("miles", miles);
                     WebTarget customerClientWebTargetFinal = customerClientWebTarget.path(customerId);
-                    
-                    Builder builder = customerClientWebTargetFinal.request();
-                
-                    if (SECURE_SERVICE_CALLS) { 
-                        try {
-                            Date date= new Date();
-                            String body = "miles=" + miles;
-                            String sigBody = secUtils.buildHash(body);            
-                            String signature = secUtils.buildHmac("POST",UPDATE_REWARD_PATH,customerId,date.toString(),sigBody); 
-                                                
-                            builder.header("acmeair-id", customerId);
-                            builder.header("acmeair-date", date.toString());
-                            builder.header("acmeair-sig-body", sigBody);    
-                            builder.header("acmeair-signature", signature); 
-                        
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }  
-                    }
+                    Builder builder = createInvocationBuilder(customerClientWebTargetFinal, form, customerId, UPDATE_REWARD_PATH);     
                 
                     builder.accept(MediaType.TEXT_PLAIN);       
                     Response res = builder.post(Entity.entity(form,MediaType.APPLICATION_FORM_URLENCODED_TYPE), Response.class);
@@ -301,201 +291,145 @@ public class BookingServiceREST {
                 }
             });
             
-        } else if (SERVICE_INVOCATION_TYPE.equals(SERVICE_INVOCATION_HTTP)) {
-            // TODO: Multi-threaded JAX-RS client works on Liberty in 17.0.0.1+, but does not seem to work on wildfly 10.1
-            // out of the box, so adding this http call for now. Will investigate.
-            // The JAX-RS call client call above has the advantage of being asynchronous.
-            
-            // Set maxConnections - this seems to help with keepalives/running out of sockets with a high load.
-            if (System.getProperty("http.maxConnections")==null) {
-                System.setProperty("http.maxConnections", "50");
-            }
-            try {                
-                String url = "http://"+ FLIGHT_SERVICE_LOC + GET_REWARD_PATH;
-                URL obj = new URL(url);
-                HttpURLConnection conn = (HttpURLConnection) obj.openConnection();
-
-                //  add request header
-                conn.setRequestMethod("POST");
-                conn.setDoInput(true);
-                conn.setDoOutput(true);
-                
-                if (SECURE_SERVICE_CALLS) { 
-                    try {
-                        Date date= new Date();
-                        String body = "flightSegment=" + flightSegId;
-                        String sigBody = secUtils.buildHash(body);
-                        String signature = secUtils.buildHmac("POST",GET_REWARD_PATH,customerId,date.toString(),sigBody); 
-                    
-                        conn.setRequestProperty("acmeair-id", customerId);
-                        conn.setRequestProperty("acmeair-date", date.toString());
-                        conn.setRequestProperty("acmeair-sig-body", sigBody);    
-                        conn.setRequestProperty("acmeair-signature", signature);  
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }  
-                }
- 
-                String urlParameters="flightSegment=" + flightSegId;          
-                
-                //  Send post request
-                DataOutputStream wr = new DataOutputStream(conn.getOutputStream());
-                wr.writeBytes(urlParameters);
-                wr.flush();
-                wr.close();
-
-                BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                String inputLine;
-                StringBuffer response = new StringBuffer();
-
-                while ((inputLine = in.readLine()) != null) {
-                    response.append(inputLine);
-                }
-                in.close();
-                conn.disconnect(); // Is this necessary?
-
-                //  print result
-                String output=response.toString();
-                Long milesLong = (Long)JSONValue.parse(output);
-                String miles = milesLong.toString();
-        
-                if (!add) {
-                    miles = ((Integer)(Integer.parseInt(miles) * -1)).toString();
-                }
-                
-                String url2 = "http://"+ CUSTOMER_SERVICE_LOC + UPDATE_REWARD_PATH + "/" + customerId;
-                URL obj2 = new URL(url2);
-                HttpURLConnection conn2 = (HttpURLConnection) obj2.openConnection();
-
-                //  add request header
-                conn2.setRequestMethod("POST");
-                conn2.setDoInput(true);
-                conn2.setDoOutput(true);
-                
-                if (SECURE_SERVICE_CALLS) { 
-                    try {
-                        Date date= new Date();
-                        String body = "miles=" + miles;
-                        String sigBody = secUtils.buildHash(body);
-                        String signature = secUtils.buildHmac("POST",UPDATE_REWARD_PATH,customerId,date.toString(),sigBody); 
-                    
-                        conn2.setRequestProperty("acmeair-id", customerId);
-                        conn2.setRequestProperty("acmeair-date", date.toString());
-                        conn2.setRequestProperty("acmeair-sig-body", sigBody);    
-                        conn2.setRequestProperty("acmeair-signature", signature);  
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }  
-                }
-                
-                
-                String urlParameters2="miles=" + miles;
-                
-                //  Send post request
-                DataOutputStream wr2 = new DataOutputStream(conn2.getOutputStream());
-                wr2.writeBytes(urlParameters2);
-                wr2.flush();
-                wr2.close();
-
-                BufferedReader in2 = new BufferedReader(new InputStreamReader(conn2.getInputStream()));
-                String inputLine2;
-               
-                while ((inputLine2 = in2.readLine()) != null) {
-                    response.append(inputLine2);
-                }
-                in2.close();
-                conn2.disconnect(); // Is this necessary?
-                  
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            
-            
-                
         } else  if (SERVICE_INVOCATION_TYPE.equals(SERVICE_INVOCATION_JAXRS_NO_CACHE)) {
                 
-            Form form = new Form();
-            form.param("flightSegment", flightSegId);
-             
-            Client c = ClientBuilder.newClient();
-            WebTarget wt = c.target("http://"+ FLIGHT_SERVICE_LOC + GET_REWARD_PATH);
+            Form form = new Form("flightSegment", flightSegId);             
+            Client flightClient = ClientBuilder.newClient();
+            WebTarget wt = flightClient.target("http://"+ FLIGHT_SERVICE_LOC + GET_REWARD_PATH);
             
-            Builder builder = wt.request();
-        
-            if (SECURE_SERVICE_CALLS) { 
-                try {
-                    Date date= new Date();
-                    String body = "flightSegment=" + flightSegId;
-                    String sigBody = secUtils.buildHash(body);
-                    String signature = secUtils.buildHmac("POST",GET_REWARD_PATH,customerId,date.toString(),sigBody); 
-            
-                    builder.header("acmeair-id", customerId);
-                    builder.header("acmeair-date", date.toString());
-                    builder.header("acmeair-sig-body", sigBody);    
-                    builder.header("acmeair-signature", signature); 
-                
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }  
-            }
-  
+            Builder builder = createInvocationBuilder(wt, form, customerId,GET_REWARD_PATH);     
             AsyncInvoker asyncInvoker = builder.async();
+            
             asyncInvoker.post(Entity.entity(form,MediaType.APPLICATION_FORM_URLENCODED_TYPE), new InvocationCallback<Response>() {
             
                 @Override
                 public void completed(Response response) {
                     
-                    c.close();
+                    flightClient.close();
                     
                     String miles = response.readEntity(String.class); 
                     if (!add) {
                         miles = ((Integer)(Integer.parseInt(miles) * -1)).toString();
                     }
                      
-                    Client c = ClientBuilder.newClient();
-                    WebTarget wt = c.target("http://"+ CUSTOMER_SERVICE_LOC + UPDATE_REWARD_PATH);                    
+                    Client customerClient = ClientBuilder.newClient();
+                    WebTarget wt = customerClient.target("http://"+ CUSTOMER_SERVICE_LOC + UPDATE_REWARD_PATH);                    
                     
-                    Form form = new Form();
-                    form.param("miles", miles);
-
+                    Form form = new Form("miles", miles);
                     WebTarget customerClientWebTargetFinal = wt.path(customerId);
-                    
-                    Builder builder = customerClientWebTargetFinal.request();
-                
-                    if (SECURE_SERVICE_CALLS) { 
-                        try {
-                            Date date= new Date();
-                            String body = "miles=" + miles;
-                            String sigBody = secUtils.buildHash(body);            
-                            String signature = secUtils.buildHmac("POST",UPDATE_REWARD_PATH,customerId,date.toString(),sigBody); 
-                                                
-                            builder.header("acmeair-id", customerId);
-                            builder.header("acmeair-date", date.toString());
-                            builder.header("acmeair-sig-body", sigBody);    
-                            builder.header("acmeair-signature", signature); 
-                        
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }  
-                    }
-                
+                    Builder builder = createInvocationBuilder(customerClientWebTargetFinal, form, customerId,UPDATE_REWARD_PATH);    
                     builder.accept(MediaType.TEXT_PLAIN);       
+                    
                     Response res = builder.post(Entity.entity(form,MediaType.APPLICATION_FORM_URLENCODED_TYPE), Response.class);
                     res.readEntity(String.class); 
                     
-                    c.close();
+                    customerClient.close();
                 }
                 
                 @Override
                 public void failed(Throwable throwable) {
                     throwable.printStackTrace();
                 }
-            });
-            
+            });       
         } 
              
     }    
         
+    private String doHttpURLCall(HttpURLConnection conn, String urlParameters) {        
+        
+        StringBuffer response = new StringBuffer();
+        
+        try {
+
+            DataOutputStream wr;
+            wr = new DataOutputStream(conn.getOutputStream());
+        
+            wr.writeBytes(urlParameters);
+            wr.flush();
+            wr.close();
+
+            BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+            String inputLine;
+            response = new StringBuffer();
+
+            while ((inputLine = in.readLine()) != null) {
+                response.append(inputLine);
+            }
+            in.close();
+            conn.disconnect(); 
+
+            //  print result
+        }  catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+            
+        return response.toString();
+    }
+
+    private HttpURLConnection createHttpURLConnection(String url, String urlParameters, String customerId, String path) {
+        
+        HttpURLConnection conn=null;
+      
+        try {
+        
+            URL obj = new URL(url);
+            conn = (HttpURLConnection) obj.openConnection();
+
+            //  add request header
+            conn.setRequestMethod("POST");
+            conn.setDoInput(true);
+            conn.setDoOutput(true);
+        
+            if (SECURE_SERVICE_CALLS) { 
+            
+                Date date= new Date();
+                String sigBody = secUtils.buildHash(urlParameters);
+                String signature = secUtils.buildHmac("POST",path,customerId,date.toString(),sigBody); 
+            
+                conn.setRequestProperty("acmeair-id", customerId);
+                conn.setRequestProperty("acmeair-date", date.toString());
+                conn.setRequestProperty("acmeair-sig-body", sigBody);    
+                conn.setRequestProperty("acmeair-signature", signature);  
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        
+        return conn;
+    }
+
+    private Builder createInvocationBuilder(WebTarget target, Form form, String customerId, String path) {
+        Builder builder = target.request();
+        
+        if (SECURE_SERVICE_CALLS) { 
+            try {
+                Date date= new Date();
+                
+                String body="";
+                MultivaluedMap<String,String> map = form.asMap();
+                
+                for(String key : map.keySet())
+                {
+                    body=key+"=" + map.getFirst(key);
+                }
+    
+                String sigBody = secUtils.buildHash(body);
+                String signature = secUtils.buildHmac("POST",path,customerId,date.toString(),sigBody); 
+        
+                builder.header("acmeair-id", customerId);
+                builder.header("acmeair-date", date.toString());
+                builder.header("acmeair-sig-body", sigBody);    
+                builder.header("acmeair-signature", signature); 
+            
+            } catch (Exception e) {
+                e.printStackTrace();
+            }  
+        }
+        
+        return builder;
+    }
+
     /** Set up JAX-RS Client/WebTarget. Recreating the WebTarget is painfully slow, so caching it here.
      * This works on Liberty 17.0.0.1+. If there is a better way to do this, please let me know!
     **/
