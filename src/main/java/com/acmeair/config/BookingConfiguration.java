@@ -29,7 +29,7 @@ public class BookingConfiguration {
 	@Produces("application/json")
 	public Response countBookings() {
 		try {
-			Long count = bookingService.count();			
+			String count = bookingService.count().toString();			
 			return Response.ok(count).build();
 		}
 		catch (Exception e) {
