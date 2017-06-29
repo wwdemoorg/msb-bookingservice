@@ -10,13 +10,10 @@
                   host="*"
                   httpPort="9080"
                   httpsPort="9443" >
-        <tcpOptions soReuseAddr="true"/> 
-		<httpOptions maxKeepAliveRequests="-1"/>
 	</httpEndpoint>
 
     <webApplication name="bookingservice"
         location="bookingservice-java-2.0.0-SNAPSHOT.war"
         contextRoot="/" />   
     <webContainer deferServletLoad="false"/>
-    <!--logging traceSpecification="*=audit:com.acmeair.*=finest"/-->
 </server>
