@@ -2,15 +2,17 @@ package com.acmeair.mongo;
 
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
-import org.json.simple.JSONValue;
+import javax.json.Json;
+import javax.json.JsonArray;
+import javax.json.JsonObject;
+import javax.json.JsonReader;
 
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientOptions;
@@ -127,39 +129,42 @@ public class ConnectionManager implements MongoConstants{
 			String vcapJSONString = System.getenv("VCAP_SERVICES");
 			if (vcapJSONString != null) {
 				logger.info("Reading VCAP_SERVICES");
-				Object jsonObject = JSONValue.parse(vcapJSONString);
-				JSONObject vcapServices = (JSONObject)jsonObject;
-				JSONArray mongoServiceArray =null;					
-				for (Object key : vcapServices.keySet()){
-					if (key.toString().startsWith("mongo")){
-						mongoServiceArray = (JSONArray) vcapServices.get(key);
-						logger.info("Service Type : MongoLAB - " + key.toString());
-						break;
-					}
-					if (key.toString().startsWith("user-provided")){
-						mongoServiceArray = (JSONArray) vcapServices.get(key);
-						logger.info("Service Type : MongoDB by Compost - " + key.toString());
-						break;
-					}
-				}
 				
-				if (mongoServiceArray == null) {
-					logger.info("VCAP_SERVICES existed, but a MongoLAB or MongoDB by COMPOST service was not definied. Trying DB resource");
-					//VCAP_SERVICES don't exist, so use the DB resource
-					dbAddress = new ServerAddress (hostname, port);
+				 JsonReader jsonReader = Json.createReader(new StringReader(vcapJSONString));
+                 JsonObject vcapServices = jsonReader.readObject();
+                 jsonReader.close(); 
+                                
+                JsonArray mongoServiceArray =null;                  
+                for (Object key : vcapServices.keySet()){
+                    if (key.toString().startsWith("mongo")){
+                        mongoServiceArray = (JsonArray) vcapServices.get(key);
+                        logger.info("Service Type : MongoLAB - " + key.toString());
+                        break;
+                    }
+                    if (key.toString().startsWith("user-provided")){
+                        mongoServiceArray = (JsonArray) vcapServices.get(key);
+                        logger.info("Service Type : MongoDB by Compost - " + key.toString());
+                        break;
+                    }
+                }
+                
+                if (mongoServiceArray == null) {
+                    logger.info("VCAP_SERVICES existed, but a MongoLAB or MongoDB by COMPOST service was not definied. Trying DB resource");
+                    //VCAP_SERVICES don't exist, so use the DB resource
+                    dbAddress = new ServerAddress (hostname, port);
 
-					// If username & password exists, connect DB with username & password
-					if ((username == null)||(password == null)){
-						mongoClient = new MongoClient(dbAddress, builtOptions);
-					}else {
-						List<MongoCredential> credentials = new ArrayList<>();
-						credentials.add(MongoCredential.createCredential(username, dbname, password.toCharArray()));
-						mongoClient = new MongoClient(dbAddress,credentials, builtOptions);
-					}
-				} else {					
-					JSONObject mongoService = (JSONObject)mongoServiceArray.get(0); 
-					JSONObject credentials = (JSONObject)mongoService.get("credentials");
-					String url = (String) credentials.get("url");
+                    // If username & password exists, connect DB with username & password
+                    if ((username == null)||(password == null)){
+                        mongoClient = new MongoClient(dbAddress, builtOptions);
+                    }else {
+                        List<MongoCredential> credentials = new ArrayList<>();
+                        credentials.add(MongoCredential.createCredential(username, dbname, password.toCharArray()));
+                        mongoClient = new MongoClient(dbAddress,credentials, builtOptions);
+                    }
+                } else {                    
+                    JsonObject mongoService = (JsonObject) mongoServiceArray.get(0); 
+                    JsonObject credentials = (JsonObject) mongoService.get("credentials");
+                    String url = (String) credentials.getString("url");
 					logger.fine("service url = " + url);				
 					MongoClientURI mongoURI = new MongoClientURI(url, options);
 					mongoClient = new MongoClient(mongoURI);

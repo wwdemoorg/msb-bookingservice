@@ -19,13 +19,18 @@ import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.StringReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Date;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.ejb.EJB;
 import javax.inject.Inject;
+import javax.json.Json;
+import javax.json.JsonObject;
+import javax.json.JsonReader;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.CookieParam;
 import javax.ws.rs.FormParam;
@@ -34,23 +39,10 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
-import javax.ws.rs.client.AsyncInvoker;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.Invocation.Builder;
-import javax.ws.rs.client.InvocationCallback;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.Form;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
-import org.json.simple.JSONObject;
-import org.json.simple.JSONValue;
-import org.json.simple.parser.JSONParser;
-
+import com.acmeair.client.JAXRSClient;
 import com.acmeair.securityutils.SecurityUtils;
 import com.acmeair.service.BookingService;
 
@@ -62,6 +54,9 @@ public class BookingServiceREST {
     
     @Inject
     private SecurityUtils secUtils;
+    
+    @EJB
+    JAXRSClient jaxrsClient; 
     
     protected Logger logger =  Logger.getLogger(BookingServiceREST.class.getName());
 
@@ -80,12 +75,8 @@ public class BookingServiceREST {
     
     private static final String SERVICE_INVOCATION_HTTP  = "http";
     private static final String SERVICE_INVOCATION_JAXRS = "jaxrs";
-    private static final String SERVICE_INVOCATION_JAXRS_NO_CACHE = "jaxrs_no_cache"; 
     private static final String SERVICE_INVOCATION_TYPE  = ((System.getenv("SERVICE_INVOCATION_TYPE") == null) ? SERVICE_INVOCATION_JAXRS : System.getenv("SERVICE_INVOCATION_TYPE"));
     
-    private static WebTarget flightClientWebTarget = null;
-    private static WebTarget customerClientWebTarget = null;
-
     static {
         System.out.println("TRACK_REWARD_MILES: " + TRACK_REWARD_MILES);
         System.out.println("SECURE_USER_CALLS: " + SECURE_USER_CALLS); 
@@ -190,9 +181,12 @@ public class BookingServiceREST {
  
             if (TRACK_REWARD_MILES) {
                 try {
-                    JSONObject booking = (JSONObject) new JSONParser().parse(bs.getBooking(userid, number));
+                    JsonReader jsonReader = Json.createReader(new StringReader(bs.getBooking(userid, number)));
+                    JsonObject booking = jsonReader.readObject();
+                    jsonReader.close(); 
+                    
                     bs.cancelBooking(userid, number);
-                    updateRewardMiles(userid, (String)booking.get("flightSegmentId"), false);
+                    updateRewardMiles(userid, booking.getString("flightSegmentId"), false);
                 }
                 catch (RuntimeException re) {
                     // booking does not exist
@@ -235,8 +229,13 @@ public class BookingServiceREST {
             String flightParameters="flightSegment=" + flightSegId;  
                 
             HttpURLConnection flightConn = createHttpURLConnection(flightUrl, flightParameters, customerId, GET_REWARD_PATH);
-            String output = doHttpURLCall(flightConn, flightParameters);                       
-            Long milesLong = (Long)JSONValue.parse(output);
+            String output = doHttpURLCall(flightConn, flightParameters);  
+            
+            JsonReader jsonReader = Json.createReader(new StringReader(output));
+            JsonObject milesObject = jsonReader.readObject();
+            jsonReader.close();
+            
+            Long milesLong = milesObject.getJsonNumber("miles").longValue();
             String miles = milesLong.toString();
         
             if (!add) {
@@ -247,90 +246,14 @@ public class BookingServiceREST {
             String customerParameters="miles=" + miles;
                 
             HttpURLConnection customerConn = createHttpURLConnection(customerUrl, customerParameters, customerId, UPDATE_REWARD_PATH);
-            doHttpURLCall(customerConn, customerParameters); 
+            String out = doHttpURLCall(customerConn, customerParameters); 
+
+            System.out.println(out); 
 
         } else if (SERVICE_INVOCATION_TYPE.equals(SERVICE_INVOCATION_JAXRS)) {
         
-            // Cache the WebTargets to avoid the huge creation overhead.
-            if (flightClientWebTarget==null) {
-                initializeFlightWebTarget();
-            }
-            if (customerClientWebTarget==null) {
-                initializeCustomerWebTarget();
-            }
-            
-            Form form = new Form("flightSegment", flightSegId);          
-            Builder builder = createInvocationBuilder(flightClientWebTarget, form, customerId,GET_REWARD_PATH);      
-            AsyncInvoker asyncInvoker = builder.async();
-            
-            // Call the flight service to get the miles for the flight segment.
-            // Do this call asynchronously to return control back to the client.
-            // Then call the customer service to update the total_miles
-            asyncInvoker.post(Entity.entity(form,MediaType.APPLICATION_FORM_URLENCODED_TYPE), new InvocationCallback<Response>() {
-            
-                @Override
-                public void completed(Response response) {
-                    
-                    String miles = response.readEntity(String.class); 
-                    if (!add) {
-                        miles = ((Integer)(Integer.parseInt(miles) * -1)).toString();
-                    }
-  
-                    Form form = new Form("miles", miles);
-                    WebTarget customerClientWebTargetFinal = customerClientWebTarget.path(customerId);
-                    Builder builder = createInvocationBuilder(customerClientWebTargetFinal, form, customerId, UPDATE_REWARD_PATH);     
-                
-                    builder.accept(MediaType.TEXT_PLAIN);       
-                    Response res = builder.post(Entity.entity(form,MediaType.APPLICATION_FORM_URLENCODED_TYPE), Response.class);
-                    res.readEntity(String.class); 
-                }
-                
-                @Override
-                public void failed(Throwable throwable) {
-                    throwable.printStackTrace();
-                }
-            });
-            
-        } else  if (SERVICE_INVOCATION_TYPE.equals(SERVICE_INVOCATION_JAXRS_NO_CACHE)) {
-                
-            Form form = new Form("flightSegment", flightSegId);             
-            Client flightClient = ClientBuilder.newClient();
-            WebTarget wt = flightClient.target("http://"+ FLIGHT_SERVICE_LOC + GET_REWARD_PATH);
-            
-            Builder builder = createInvocationBuilder(wt, form, customerId,GET_REWARD_PATH);     
-            AsyncInvoker asyncInvoker = builder.async();
-            
-            asyncInvoker.post(Entity.entity(form,MediaType.APPLICATION_FORM_URLENCODED_TYPE), new InvocationCallback<Response>() {
-            
-                @Override
-                public void completed(Response response) {
-                    
-                    flightClient.close();
-                    
-                    String miles = response.readEntity(String.class); 
-                    if (!add) {
-                        miles = ((Integer)(Integer.parseInt(miles) * -1)).toString();
-                    }
-                     
-                    Client customerClient = ClientBuilder.newClient();
-                    WebTarget wt = customerClient.target("http://"+ CUSTOMER_SERVICE_LOC + UPDATE_REWARD_PATH);                    
-                    
-                    Form form = new Form("miles", miles);
-                    WebTarget customerClientWebTargetFinal = wt.path(customerId);
-                    Builder builder = createInvocationBuilder(customerClientWebTargetFinal, form, customerId,UPDATE_REWARD_PATH);    
-                    builder.accept(MediaType.TEXT_PLAIN);       
-                    
-                    Response res = builder.post(Entity.entity(form,MediaType.APPLICATION_FORM_URLENCODED_TYPE), Response.class);
-                    res.readEntity(String.class); 
-                    
-                    customerClient.close();
-                }
-                
-                @Override
-                public void failed(Throwable throwable) {
-                    throwable.printStackTrace();
-                }
-            });       
+            jaxrsClient.makeCall(flightSegId, customerId, add);
+               
         } 
              
     }    
@@ -399,59 +322,4 @@ public class BookingServiceREST {
         return conn;
     }
 
-    private Builder createInvocationBuilder(WebTarget target, Form form, String customerId, String path) {
-        Builder builder = target.request();
-        
-        if (SECURE_SERVICE_CALLS) { 
-            try {
-                Date date= new Date();
-                
-                String body="";
-                MultivaluedMap<String,String> map = form.asMap();
-                
-                for(String key : map.keySet())
-                {
-                    body=key+"=" + map.getFirst(key);
-                }
-    
-                String sigBody = secUtils.buildHash(body);
-                String signature = secUtils.buildHmac("POST",path,customerId,date.toString(),sigBody); 
-        
-                builder.header("acmeair-id", customerId);
-                builder.header("acmeair-date", date.toString());
-                builder.header("acmeair-sig-body", sigBody);    
-                builder.header("acmeair-signature", signature); 
-            
-            } catch (Exception e) {
-                e.printStackTrace();
-            }  
-        }
-        
-        return builder;
-    }
-
-    /** Set up JAX-RS Client/WebTarget. Recreating the WebTarget is painfully slow, so caching it here.
-     * This works on Liberty 17.0.0.1+. If there is a better way to do this, please let me know!
-    **/
-    private static void initializeFlightWebTarget() {
-            
-        Client client = ClientBuilder.newClient();
-
-        // liberty specific
-        client.property("http.maxConnections", Integer.valueOf(50));
-        client.property("thread.safe.client", Boolean.valueOf(true));
-            
-        flightClientWebTarget = client.target("http://"+ FLIGHT_SERVICE_LOC + GET_REWARD_PATH);
-    }
-    
-    private static void initializeCustomerWebTarget() {
-                     
-        Client client = ClientBuilder.newClient();
-
-        // liberty specific
-        client.property("http.maxConnections", Integer.valueOf(50));
-        client.property("thread.safe.client", Boolean.valueOf(true));
-            
-        customerClientWebTarget = client.target("http://"+ CUSTOMER_SERVICE_LOC + UPDATE_REWARD_PATH);
-    }   
 }
