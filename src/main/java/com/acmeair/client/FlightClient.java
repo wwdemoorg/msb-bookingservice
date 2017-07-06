@@ -7,11 +7,9 @@ import javax.ejb.LocalBean;
 import javax.ejb.Stateless;
 import javax.inject.Inject;
 import javax.json.JsonObject;
-import javax.ws.rs.client.AsyncInvoker;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.Invocation.Builder;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.Form;
@@ -26,18 +24,16 @@ import com.acmeair.securityutils.SecurityUtils;
 
 @Stateless
 @LocalBean
-public class JAXRSClient {
+public class FlightClient {
 
     WebTarget flightTarget;
-    WebTarget customerTargetBase;
+
     
     // Default to amalgam8 default
     private static final String FLIGHT_SERVICE_LOC = ((System.getenv("FLIGHT_SERVICE") == null) ? "localhost:6379/flight" : System.getenv("FLIGHT_SERVICE"));
     private static final String GET_REWARD_PATH = "/getrewardmiles";
     
-    private static final String CUSTOMER_SERVICE_LOC = ((System.getenv("CUSTOMER_SERVICE") == null) ? "localhost:6379/customer" : System.getenv("CUSTOMER_SERVICE"));
-    private static final String UPDATE_REWARD_PATH = "/updateCustomerTotalMiles";
-    
+      
     private static final Boolean SECURE_SERVICE_CALLS = Boolean.valueOf((System.getenv("SECURE_SERVICE_CALLS") == null) ? "false" : System.getenv("SECURE_SERVICE_CALLS"));
 
     @Inject
@@ -48,53 +44,27 @@ public class JAXRSClient {
 
         Client flightClient = ClientBuilder.newClient();
         flightTarget =  flightClient.target("http://"+ FLIGHT_SERVICE_LOC +GET_REWARD_PATH);
-        
-        Client customerClient = ClientBuilder.newClient();
-        customerTargetBase =  customerClient.target("http://"+ CUSTOMER_SERVICE_LOC + UPDATE_REWARD_PATH);
-        
-        System.out.println("here");
+ 
     }
     
     
-    public void makeCall (String flightSegId, String customerId, boolean add) {
+    public String makeCall (String flightSegId, String customerId, boolean add) {
         
         Form form = new Form("flightSegment", flightSegId);          
         Builder builder = createInvocationBuilder(flightTarget, form, customerId,GET_REWARD_PATH);      
-        AsyncInvoker asyncInvoker = builder.async();
-        
-        // Call the flight service to get the miles for the flight segment.
-        // Do this call asynchronously to return control back to the client.
-        // Then call the customer service to update the total_miles
-        asyncInvoker.post(Entity.entity(form,MediaType.APPLICATION_FORM_URLENCODED_TYPE), new InvocationCallback<Response>() {
-        
-            @Override
-            public void completed(Response response) {
-                
-                JsonObject jsonObject =response.readEntity(JsonObject.class);       
-                Long milesLong = jsonObject.getJsonNumber("miles").longValue();
-                String miles = milesLong.toString(); 
+        Response res = builder.post(Entity.entity(form,MediaType.APPLICATION_FORM_URLENCODED_TYPE), Response.class);
+       
+                               
+        JsonObject jsonObject =res.readEntity(JsonObject.class);       
+        Long milesLong = jsonObject.getJsonNumber("miles").longValue();
+        String miles = milesLong.toString(); 
                 
                 
-                if (!add) {
-                    miles = ((Integer)(Integer.parseInt(miles) * -1)).toString();
-                }
+        if (!add) {
+            miles = ((Integer)(Integer.parseInt(miles) * -1)).toString();
+        }
 
-                Form form = new Form("miles", miles);
-                WebTarget customerClientWebTargetFinal = customerTargetBase.path(customerId);
-                Builder builder = createInvocationBuilder(customerClientWebTargetFinal, form, customerId, UPDATE_REWARD_PATH);     
-            
-                builder.accept(MediaType.TEXT_PLAIN);       
-                Response res = builder.post(Entity.entity(form,MediaType.APPLICATION_FORM_URLENCODED_TYPE), Response.class);
-                
-               res.readEntity(JsonObject.class);                        
-            }
-            
-            @Override
-            public void failed(Throwable throwable) {
-                throwable.printStackTrace();
-            }
-        });
-           
+        return miles;
     } 
     
     private Builder createInvocationBuilder(WebTarget target, Form form, String customerId, String path) {

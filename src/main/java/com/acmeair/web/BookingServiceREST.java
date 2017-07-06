@@ -42,7 +42,8 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
-import com.acmeair.client.JAXRSClient;
+import com.acmeair.client.FlightClient;
+import com.acmeair.client.CustomerClient;
 import com.acmeair.securityutils.SecurityUtils;
 import com.acmeair.service.BookingService;
 
@@ -56,7 +57,10 @@ public class BookingServiceREST {
     private SecurityUtils secUtils;
     
     @EJB
-    JAXRSClient jaxrsClient; 
+    FlightClient fc;
+    
+    @EJB
+    CustomerClient cc; 
     
     protected Logger logger =  Logger.getLogger(BookingServiceREST.class.getName());
 
@@ -252,8 +256,8 @@ public class BookingServiceREST {
 
         } else if (SERVICE_INVOCATION_TYPE.equals(SERVICE_INVOCATION_JAXRS)) {
         
-            jaxrsClient.makeCall(flightSegId, customerId, add);
-               
+            String miles = fc.makeCall(flightSegId, customerId, add);
+            cc.makeCall(customerId, miles);           
         } 
              
     }    
