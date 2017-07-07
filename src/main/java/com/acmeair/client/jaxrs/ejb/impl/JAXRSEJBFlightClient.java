@@ -23,7 +23,7 @@ public class JAXRSEJBFlightClient extends JAXRSClient implements FlightClient {
     private WebTarget flightTarget;
             
     static {
-        System.out.println("Using JAXRSFlightClient");
+        System.out.println("Using JAXRSEJBFlightClient");
         System.out.println("SECURE_SERVICE_CALLS: " + SECURE_SERVICE_CALLS); 
     }
     
