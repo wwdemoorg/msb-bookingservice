@@ -15,18 +15,10 @@
 *******************************************************************************/
 package com.acmeair.web;
 
-import java.io.BufferedReader;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.StringReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.util.Date;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.ejb.EJB;
 import javax.inject.Inject;
 import javax.json.Json;
 import javax.json.JsonObject;
@@ -42,8 +34,8 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
-import com.acmeair.client.FlightClient;
 import com.acmeair.client.CustomerClient;
+import com.acmeair.client.FlightClient;
 import com.acmeair.securityutils.SecurityUtils;
 import com.acmeair.service.BookingService;
 
@@ -56,36 +48,21 @@ public class BookingServiceREST {
     @Inject
     private SecurityUtils secUtils;
     
-    @EJB
-    FlightClient fc;
+    @Inject
+    private FlightClient flightClient;
     
-    @EJB
-    CustomerClient cc; 
+    @Inject
+    private CustomerClient customerClient; 
     
     protected Logger logger =  Logger.getLogger(BookingServiceREST.class.getName());
 
     // TRACK MILES OPTIONS
     private static final Boolean TRACK_REWARD_MILES = Boolean.valueOf((System.getenv("TRACK_REWARD_MILES") == null) ? "false" : System.getenv("TRACK_REWARD_MILES"));
-   
-    // Default to amalgam8 default
-    private static final String FLIGHT_SERVICE_LOC = ((System.getenv("FLIGHT_SERVICE") == null) ? "localhost:6379/flight" : System.getenv("FLIGHT_SERVICE"));
-    private static final String GET_REWARD_PATH = "/getrewardmiles";
-    
-    private static final String CUSTOMER_SERVICE_LOC = ((System.getenv("CUSTOMER_SERVICE") == null) ? "localhost:6379/customer" : System.getenv("CUSTOMER_SERVICE"));
-    private static final String UPDATE_REWARD_PATH = "/updateCustomerTotalMiles";
-    
     private static final Boolean SECURE_USER_CALLS = Boolean.valueOf((System.getenv("SECURE_USER_CALLS") == null) ? "true" : System.getenv("SECURE_USER_CALLS"));
-    private static final Boolean SECURE_SERVICE_CALLS = Boolean.valueOf((System.getenv("SECURE_SERVICE_CALLS") == null) ? "false" : System.getenv("SECURE_SERVICE_CALLS"));
-    
-    private static final String SERVICE_INVOCATION_HTTP  = "http";
-    private static final String SERVICE_INVOCATION_JAXRS = "jaxrs";
-    private static final String SERVICE_INVOCATION_TYPE  = ((System.getenv("SERVICE_INVOCATION_TYPE") == null) ? SERVICE_INVOCATION_JAXRS : System.getenv("SERVICE_INVOCATION_TYPE"));
-    
+           
     static {
         System.out.println("TRACK_REWARD_MILES: " + TRACK_REWARD_MILES);
         System.out.println("SECURE_USER_CALLS: " + SECURE_USER_CALLS); 
-        System.out.println("SECURE_SERVICE_CALLS: " + SECURE_SERVICE_CALLS); 
-        System.out.println("SERVICE_INVOCATION_TYPE: " + SERVICE_INVOCATION_TYPE); 
     }
 
     @POST
@@ -218,112 +195,7 @@ public class BookingServiceREST {
     } 
     
     private void updateRewardMiles(String customerId, String flightSegId, boolean add) {
-        
-        if (SERVICE_INVOCATION_TYPE.equals(SERVICE_INVOCATION_HTTP)) {
-            // TODO: Multi-threaded JAX-RS client works on Liberty in 17.0.0.1+, but does not seem to work on wildfly 10.1
-            // out of the box, so adding this http call for now. Will investigate.
-            // The JAX-RS client call below has the advantage of being asynchronous.
-            
-            // Set maxConnections - this seems to help with keepalives/running out of sockets with a high load.
-            if (System.getProperty("http.maxConnections")==null) {
-                System.setProperty("http.maxConnections", "50");
-            }
-                       
-            String flightUrl = "http://"+ FLIGHT_SERVICE_LOC + GET_REWARD_PATH;
-            String flightParameters="flightSegment=" + flightSegId;  
-                
-            HttpURLConnection flightConn = createHttpURLConnection(flightUrl, flightParameters, customerId, GET_REWARD_PATH);
-            String output = doHttpURLCall(flightConn, flightParameters);  
-            
-            JsonReader jsonReader = Json.createReader(new StringReader(output));
-            JsonObject milesObject = jsonReader.readObject();
-            jsonReader.close();
-            
-            Long milesLong = milesObject.getJsonNumber("miles").longValue();
-            String miles = milesLong.toString();
-        
-            if (!add) {
-                miles = ((Integer)(Integer.parseInt(miles) * -1)).toString();
-            }
-                
-            String customerUrl = "http://"+ CUSTOMER_SERVICE_LOC + UPDATE_REWARD_PATH + "/" + customerId;
-            String customerParameters="miles=" + miles;
-                
-            HttpURLConnection customerConn = createHttpURLConnection(customerUrl, customerParameters, customerId, UPDATE_REWARD_PATH);
-            String out = doHttpURLCall(customerConn, customerParameters); 
-
-            System.out.println(out); 
-
-        } else if (SERVICE_INVOCATION_TYPE.equals(SERVICE_INVOCATION_JAXRS)) {
-        
-            String miles = fc.makeCall(flightSegId, customerId, add);
-            cc.makeCall(customerId, miles);           
-        } 
-             
+        String miles = flightClient.getRewardMiles(customerId, flightSegId, add);
+        customerClient.updateTotalMiles(customerId, miles);                
     }    
-        
-    private String doHttpURLCall(HttpURLConnection conn, String urlParameters) {        
-        
-        StringBuffer response = new StringBuffer();
-        
-        try {
-
-            DataOutputStream wr;
-            wr = new DataOutputStream(conn.getOutputStream());
-        
-            wr.writeBytes(urlParameters);
-            wr.flush();
-            wr.close();
-
-            BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-            String inputLine;
-            response = new StringBuffer();
-
-            while ((inputLine = in.readLine()) != null) {
-                response.append(inputLine);
-            }
-            in.close();
-            conn.disconnect(); 
-
-            //  print result
-        }  catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-            
-        return response.toString();
-    }
-
-    private HttpURLConnection createHttpURLConnection(String url, String urlParameters, String customerId, String path) {
-        
-        HttpURLConnection conn=null;
-      
-        try {
-        
-            URL obj = new URL(url);
-            conn = (HttpURLConnection) obj.openConnection();
-
-            //  add request header
-            conn.setRequestMethod("POST");
-            conn.setDoInput(true);
-            conn.setDoOutput(true);
-        
-            if (SECURE_SERVICE_CALLS) { 
-            
-                Date date= new Date();
-                String sigBody = secUtils.buildHash(urlParameters);
-                String signature = secUtils.buildHmac("POST",path,customerId,date.toString(),sigBody); 
-            
-                conn.setRequestProperty("acmeair-id", customerId);
-                conn.setRequestProperty("acmeair-date", date.toString());
-                conn.setRequestProperty("acmeair-sig-body", sigBody);    
-                conn.setRequestProperty("acmeair-signature", signature);  
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        
-        return conn;
-    }
-
 }
