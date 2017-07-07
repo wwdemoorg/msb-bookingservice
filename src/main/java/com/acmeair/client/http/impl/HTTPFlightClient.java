@@ -11,7 +11,7 @@ import com.acmeair.client.FlightClient;
 import com.acmeair.client.cdi.ClientType;
 import com.acmeair.client.http.HTTPClient;
 
-@ClientType("jaxrs-ejb")
+@ClientType("http")
 public class HTTPFlightClient extends HTTPClient implements FlightClient {
                
     static {
