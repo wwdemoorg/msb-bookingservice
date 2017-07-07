@@ -1,6 +1,7 @@
-package com.acmeair.client.jaxrs.impl;
+package com.acmeair.client.jaxrs.ejb.impl;
 
 import javax.annotation.PostConstruct;
+import javax.ejb.Stateless;
 import javax.json.JsonObject;
 
 import javax.ws.rs.client.Client;
@@ -17,24 +18,21 @@ import com.acmeair.client.cdi.ClientType;
 import com.acmeair.client.CustomerClient;
 import com.acmeair.client.jaxrs.JAXRSClient;
 
-@ClientType("jaxrs")
-public class JAXRSCustomerClient extends JAXRSClient implements CustomerClient {
+@ClientType("jaxrs-ejb")
+@Stateless
+public class JAXRSEJBCustomerClient extends JAXRSClient implements CustomerClient {
 
-    private static WebTarget customerTargetBase=null;   
+    private WebTarget customerTargetBase;   
         
     static {
-        System.out.println("Using JAXRSCustomerClient");
+        System.out.println("Using JAXRSEJBCustomerClient");
         System.out.println("SECURE_SERVICE_CALLS: " + SECURE_SERVICE_CALLS); 
     }
     
     @PostConstruct
     public void init(){
-        if (customerTargetBase==null) {
-            Client customerClient = ClientBuilder.newClient();
-            customerClient.property("http.maxConnections", Integer.valueOf(50));
-            customerClient.property("thread.safe.client", Boolean.valueOf(true));
-            customerTargetBase =  customerClient.target("http://"+ CUSTOMER_SERVICE_LOC + UPDATE_REWARD_PATH); 
-        }
+        Client customerClient = ClientBuilder.newClient();
+        customerTargetBase =  customerClient.target("http://"+ CUSTOMER_SERVICE_LOC + UPDATE_REWARD_PATH);     
     }
     
     public void updateTotalMiles(String customerId, String miles) {

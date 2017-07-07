@@ -13,7 +13,7 @@ import com.acmeair.securityutils.SecurityUtils;
 
 public class JAXRSClient {
     
-    private static final Boolean SECURE_SERVICE_CALLS = Boolean.valueOf((System.getenv("SECURE_SERVICE_CALLS") == null) ? "false" : System.getenv("SECURE_SERVICE_CALLS"));
+    protected static final Boolean SECURE_SERVICE_CALLS = Boolean.valueOf((System.getenv("SECURE_SERVICE_CALLS") == null) ? "false" : System.getenv("SECURE_SERVICE_CALLS"));
 
     @Inject
     private SecurityUtils secUtils;

@@ -1,6 +1,7 @@
-package com.acmeair.client.jaxrs.impl;
+package com.acmeair.client.jaxrs.ejb.impl;
 
 import javax.annotation.PostConstruct;
+import javax.ejb.Stateless;
 import javax.json.JsonObject;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
@@ -15,10 +16,11 @@ import com.acmeair.client.FlightClient;
 import com.acmeair.client.cdi.ClientType;
 import com.acmeair.client.jaxrs.JAXRSClient;
 
-@ClientType("jaxrs")
-public class JAXRSFlightClient extends JAXRSClient implements FlightClient {
+@ClientType("jaxrs-ejb")
+@Stateless
+public class JAXRSEJBFlightClient extends JAXRSClient implements FlightClient {
 
-    private static WebTarget flightTarget;
+    private WebTarget flightTarget;
             
     static {
         System.out.println("Using JAXRSFlightClient");
@@ -27,12 +29,8 @@ public class JAXRSFlightClient extends JAXRSClient implements FlightClient {
     
     @PostConstruct
     public void init(){
-        if (flightTarget==null) {
-            Client flightClient = ClientBuilder.newClient();
-            flightClient.property("http.maxConnections", Integer.valueOf(50));
-            flightClient.property("thread.safe.client", Boolean.valueOf(true));
-            flightTarget =  flightClient.target("http://"+ FLIGHT_SERVICE_LOC +GET_REWARD_PATH);
-        }
+        Client flightClient = ClientBuilder.newClient();
+        flightTarget =  flightClient.target("http://"+ FLIGHT_SERVICE_LOC +GET_REWARD_PATH);
     }
         
     public String getRewardMiles(String customerId, String flightSegId, boolean add) {
