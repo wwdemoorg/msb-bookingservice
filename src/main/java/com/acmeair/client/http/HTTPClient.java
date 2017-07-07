@@ -17,7 +17,7 @@ public class HTTPClient {
     @Inject
     private SecurityUtils secUtils;
     
-    private static final Boolean SECURE_SERVICE_CALLS = Boolean.valueOf((System.getenv("SECURE_SERVICE_CALLS") == null) ? "false" : System.getenv("SECURE_SERVICE_CALLS"));
+    protected static final Boolean SECURE_SERVICE_CALLS = Boolean.valueOf((System.getenv("SECURE_SERVICE_CALLS") == null) ? "false" : System.getenv("SECURE_SERVICE_CALLS"));
 
     protected String doHttpURLCall(HttpURLConnection conn, String urlParameters) {        
         

@@ -16,6 +16,7 @@ public class HTTPFlightClient extends HTTPClient implements FlightClient {
                
     static {
         System.out.println("Using HTTPFlightClient");
+        System.out.println("SECURE_SERVICE_CALLS: " + SECURE_SERVICE_CALLS); 
     }
     
     public String getRewardMiles(String customerId, String flightSegId, boolean add) {

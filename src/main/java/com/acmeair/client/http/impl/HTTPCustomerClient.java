@@ -10,6 +10,7 @@ public class HTTPCustomerClient extends HTTPClient implements CustomerClient {
     
     static {
         System.out.println("Using HTTPCustomerClient");
+        System.out.println("SECURE_SERVICE_CALLS: " + SECURE_SERVICE_CALLS); 
     }
     
     public void updateTotalMiles(String customerId, String miles) {
