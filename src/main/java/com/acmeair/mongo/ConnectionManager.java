@@ -13,6 +13,7 @@ import javax.json.Json;
 import javax.json.JsonArray;
 import javax.json.JsonObject;
 import javax.json.JsonReader;
+import javax.json.JsonReaderFactory;
 
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientOptions;
@@ -25,6 +26,8 @@ import com.mongodb.client.MongoDatabase;
 public class ConnectionManager implements MongoConstants{
 
 	private static AtomicReference<ConnectionManager> connectionManager = new AtomicReference<ConnectionManager>();
+	
+	final static JsonReaderFactory factory = Json.createReaderFactory(null);
 	
 	private final static Logger logger = Logger.getLogger(ConnectionManager.class.getName());
 	
@@ -130,7 +133,7 @@ public class ConnectionManager implements MongoConstants{
 			if (vcapJSONString != null) {
 				logger.info("Reading VCAP_SERVICES");
 				
-				 JsonReader jsonReader = Json.createReader(new StringReader(vcapJSONString));
+				 JsonReader jsonReader = factory.createReader(new StringReader(vcapJSONString));
                  JsonObject vcapServices = jsonReader.readObject();
                  jsonReader.close(); 
                                 

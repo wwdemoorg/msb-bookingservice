@@ -23,6 +23,7 @@ import javax.inject.Inject;
 import javax.json.Json;
 import javax.json.JsonObject;
 import javax.json.JsonReader;
+import javax.json.JsonReaderFactory;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.CookieParam;
 import javax.ws.rs.FormParam;
@@ -52,9 +53,11 @@ public class BookingServiceREST {
     private FlightClient flightClient;
     
     @Inject
-    private CustomerClient customerClient; 
-    
+    private CustomerClient customerClient;  
+      
     protected Logger logger =  Logger.getLogger(BookingServiceREST.class.getName());
+    
+    private final static JsonReaderFactory factory = Json.createReaderFactory(null);
 
     // TRACK MILES OPTIONS
     private static final Boolean TRACK_REWARD_MILES = Boolean.valueOf((System.getenv("TRACK_REWARD_MILES") == null) ? "false" : System.getenv("TRACK_REWARD_MILES"));
@@ -162,7 +165,7 @@ public class BookingServiceREST {
  
             if (TRACK_REWARD_MILES) {
                 try {
-                    JsonReader jsonReader = Json.createReader(new StringReader(bs.getBooking(userid, number)));
+                    JsonReader jsonReader = factory.createReader(new StringReader(bs.getBooking(userid, number)));
                     JsonObject booking = jsonReader.readObject();
                     jsonReader.close(); 
                     

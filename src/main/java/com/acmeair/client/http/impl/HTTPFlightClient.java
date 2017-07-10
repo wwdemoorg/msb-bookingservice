@@ -6,6 +6,7 @@ import java.net.HttpURLConnection;
 import javax.json.Json;
 import javax.json.JsonObject;
 import javax.json.JsonReader;
+import javax.json.JsonReaderFactory;
 
 import com.acmeair.client.FlightClient;
 import com.acmeair.client.cdi.ClientType;
@@ -13,11 +14,13 @@ import com.acmeair.client.http.HTTPClient;
 
 @ClientType("http")
 public class HTTPFlightClient extends HTTPClient implements FlightClient {
-               
+     
+    final static JsonReaderFactory factory = Json.createReaderFactory(null);
+    
     static {
         System.out.println("Using HTTPFlightClient");
         System.out.println("SECURE_SERVICE_CALLS: " + SECURE_SERVICE_CALLS); 
-    }
+    }  
     
     public String getRewardMiles(String customerId, String flightSegId, boolean add) {
         // Set maxConnections - this seems to help with keepalives/running out of sockets with a high load.
@@ -29,9 +32,9 @@ public class HTTPFlightClient extends HTTPClient implements FlightClient {
         String flightParameters="flightSegment=" + flightSegId;  
             
         HttpURLConnection flightConn = createHttpURLConnection(flightUrl, flightParameters, customerId, GET_REWARD_PATH);
-        String output = doHttpURLCall(flightConn, flightParameters);  
+        String output = doHttpURLCall(flightConn, flightParameters);         
         
-        JsonReader jsonReader = Json.createReader(new StringReader(output));
+        JsonReader jsonReader = factory.createReader(new StringReader(output));
         JsonObject milesObject = jsonReader.readObject();
         jsonReader.close();
         
