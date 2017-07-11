@@ -14,15 +14,30 @@
 * limitations under the License.
 *******************************************************************************/
 
-package com.acmeair.client;
+package com.acmeair.config;
 
-public interface CustomerClient {
+import com.acmeair.loader.BookingLoader;
 
-  // default to amalgam8
-  static final String CUSTOMER_SERVICE_LOC = 
-      ((System.getenv("CUSTOMER_SERVICE") == null) ? "localhost:6379/customer"
-      : System.getenv("CUSTOMER_SERVICE"));
-  static final String UPDATE_REWARD_PATH = "/updateCustomerTotalMiles";
+import javax.inject.Inject;
+import javax.ws.rs.GET;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.Response;
 
-  public abstract void updateTotalMiles(String customerId, String miles);
+
+
+@Path("/loader")
+public class BookingLoaderRest {
+
+  @Inject
+  private BookingLoader loader;
+
+  @GET
+  @Path("/load")
+  @Produces("text/plain")
+  public Response loadDb() {
+    String response = loader.clearBookingDb();
+    return Response.ok(response).build();
+  }
+
 }
