@@ -14,27 +14,16 @@
 * limitations under the License.
 *******************************************************************************/
 
-package com.acmeair.web;
+package com.acmeair.client;
 
-import com.acmeair.config.BookingConfiguration;
-import com.acmeair.config.BookingLoaderRest;
+public interface FlightClient {
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
+  // Default to amalgam8 default
+  static final String FLIGHT_SERVICE_LOC = 
+      ((System.getenv("FLIGHT_SERVICE") == null) ? "localhost:6379/flight"
+      : System.getenv("FLIGHT_SERVICE"));
+  
+  static final String GET_REWARD_PATH = "/getrewardmiles";
 
-import javax.ws.rs.ApplicationPath;
-import javax.ws.rs.core.Application;
-
-@ApplicationPath("/")
-
-public class BookingServiceApp extends Application {
-  /**
-   * Set JAXRS Services.
-   */
-  public Set<Class<?>> getClasses() {
-    return new HashSet<Class<?>>(
-        Arrays.asList(BookingServiceRest.class, BookingConfiguration.class, 
-            BookingLoaderRest.class));
-  }
+  public abstract String getRewardMiles(String customerId, String flightSegId, boolean add);
 }

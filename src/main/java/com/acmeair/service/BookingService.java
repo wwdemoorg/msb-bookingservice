@@ -13,27 +13,27 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 *******************************************************************************/
+
 package com.acmeair.service;
 
 import java.util.List;
 
-
 public interface BookingService {
 
-	//String bookFlight(String customerId, FlightPK flightId);
-//	String bookFlight(String customerId, String flightId);
-	
-	String bookFlight(String customerId, String flightSegmentId, String FlightId);
-	
-	String getBooking(String user, String id);
+  // String bookFlight(String customerId, FlightPK flightId);
+  // String bookFlight(String customerId, String flightId);
 
-	List<String> getBookingsByUser(String user);
-	
-	void cancelBooking(String user, String id);
-	
-	Long count();
+  String bookFlight(String customerId, String flightSegmentId, String flightId);
 
-	void dropBookings();
+  String getBooking(String user, String id);
 
-    String getServiceType();
+  List<String> getBookingsByUser(String user);
+
+  void cancelBooking(String user, String id);
+
+  Long count();
+
+  void dropBookings();
+
+  String getServiceType();
 }

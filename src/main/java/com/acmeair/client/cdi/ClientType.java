@@ -14,27 +14,21 @@
 * limitations under the License.
 *******************************************************************************/
 
-package com.acmeair.web;
+package com.acmeair.client.cdi;
 
-import com.acmeair.config.BookingConfiguration;
-import com.acmeair.config.BookingLoaderRest;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+import javax.inject.Qualifier;
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
-
-import javax.ws.rs.ApplicationPath;
-import javax.ws.rs.core.Application;
-
-@ApplicationPath("/")
-
-public class BookingServiceApp extends Application {
+@Qualifier
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ElementType.TYPE, ElementType.METHOD,
+ ElementType.FIELD, ElementType.PARAMETER})
+public @interface ClientType {
   /**
-   * Set JAXRS Services.
+   * Default to jaxrs client
    */
-  public Set<Class<?>> getClasses() {
-    return new HashSet<Class<?>>(
-        Arrays.asList(BookingServiceRest.class, BookingConfiguration.class, 
-            BookingLoaderRest.class));
-  }
+  String value() default "jaxrs";
 }

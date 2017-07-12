@@ -13,11 +13,12 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 *******************************************************************************/
+
 package com.acmeair.service;
 
 public class KeyGenerator {
-	
-	public Object generate() {
-		return java.util.UUID.randomUUID().toString();
-	}
+
+  public Object generate() {
+    return java.util.UUID.randomUUID().toString();
+  }
 }

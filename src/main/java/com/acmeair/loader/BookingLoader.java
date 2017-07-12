@@ -13,35 +13,38 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 *******************************************************************************/
+
 package com.acmeair.loader;
 
-import java.util.logging.Logger;
-
-import javax.inject.Inject;
-
 import com.acmeair.service.BookingService;
+
+import java.util.logging.Logger;
+import javax.inject.Inject;
 
 
 public class BookingLoader {
 
-    @Inject
-    BookingService bookingService;
-    
-	private static Logger logger = Logger.getLogger(BookingLoader.class.getName());
+  @Inject
+  BookingService bookingService;
 
-	public String clearBookingDB() {		
-		double length = 0;
-		
-		try {
-			long start = System.currentTimeMillis();		
-			logger.info("Start clearing session");
-			bookingService.dropBookings();
-			long stop = System.currentTimeMillis();
-			logger.info("Finished clearing in " + (stop - start)/1000.0 + " seconds");
-			length = (stop - start)/1000.0;
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		return "Cleared bookings in " + length + " seconds";
-	}
+  private static Logger logger = Logger.getLogger(BookingLoader.class.getName());
+
+  /**
+   * Delete booking entries.
+   */
+  public String clearBookingDb() {
+    double length = 0;
+
+    try {
+      long start = System.currentTimeMillis();
+      logger.info("Start clearing session");
+      bookingService.dropBookings();
+      long stop = System.currentTimeMillis();
+      logger.info("Finished clearing in " + (stop - start) / 1000.0 + " seconds");
+      length = (stop - start) / 1000.0;
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+    return "Cleared bookings in " + length + " seconds";
+  }
 }
