@@ -18,10 +18,12 @@ package com.acmeair.config;
 
 import com.acmeair.service.BookingService;
 
-import java.util.ArrayList;
 import java.util.logging.Logger;
 
 import javax.inject.Inject;
+import javax.json.Json;
+import javax.json.JsonArray;
+import javax.json.JsonBuilderFactory;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
@@ -77,34 +79,20 @@ public class BookingConfiguration {
   @GET
   @Path("/runtime")
   @Produces("application/json")
-  public ArrayList<ServiceData> getRuntimeInfo() {
-    try {
-      logger.fine("Getting Runtime info");
-      ArrayList<ServiceData> list = new ArrayList<ServiceData>();
-      ServiceData data = new ServiceData();
-      data.name = "Runtime";
-      data.description = "Java";
-      list.add(data);
-
-      data = new ServiceData();
-      data.name = "Version";
-      data.description = System.getProperty("java.version");
-      list.add(data);
-
-      data = new ServiceData();
-      data.name = "Vendor";
-      data.description = System.getProperty("java.vendor");
-      list.add(data);
-
-      return list;
-    } catch (Exception e) {
-      e.printStackTrace();
-      return null;
-    }
-  }
-
-  class ServiceData {
-    public String name = "";
-    public String description = "";
+  public String getRuntimeInfo() {
+    JsonBuilderFactory factory = Json.createBuilderFactory(null);
+    JsonArray value = factory.createArrayBuilder()
+        .add(factory.createObjectBuilder()
+            .add("name", "Runtime")
+            .add("description", "Java"))
+        .add(factory.createObjectBuilder()
+            .add("name", "Version")
+            .add("description", System.getProperty("java.version")))
+        .add(factory.createObjectBuilder()
+            .add("name", "Vendor")
+            .add("description", System.getProperty("java.vendor")))
+        .build();
+    
+    return value.toString();
   }
 }
