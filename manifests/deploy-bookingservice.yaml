@@ -10,36 +10,48 @@ spec:
         name: booking-deployment
     spec:
       containers:
-      - env:
-        - name: MONGO_HOST
-          value: booking-db
-        name: bookingservice-java
+      - name: bookingservice-java
         image: bookingservice-java:latest
         ports:
           - containerPort: 9080
         imagePullPolicy: IfNotPresent
+        env:
+        - name: MONGO_HOST
+          value: booking-db
+        - name: MB_KEYSTORE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mb-keystore-password
+              key: password
+        - name: MB_TRUSTSTORE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mb-truststore-password
+              key: password
         volumeMounts:
-        - name: keystore
-          mountPath: /etc/wlp/config/keystore
-        - name: truststore
-          mountPath: /etc/wlp/config/truststore
-        - name: liberty-config
-          mountPath: /config/configDropins
+          - name: keystores
+            mountPath: /etc/wlp/config/keystore
+            readOnly: true
+          - name: truststores
+            mountPath: /etc/wlp/config/truststore
+            readOnly: true
+          - name: liberty-config
+            mountPath: /config/configDropins
       volumes:
-      - name: keystore
-        secret:
-          secretName: wlp-keystore
-      - name: truststore
-        secret:
-          secretName: wlp-truststore
-      - name: liberty-config
-        configMap:
-          name: liberty-config
-          items:
-            - key: keystore.xml
-              path: defaults/keystore.xml
-            - key: logging.xml
-              path: defaults/logging.xml
+        - name: keystores
+          secret:
+            secretName: mb-keystore
+        - name: truststores
+          secret:
+            secretName: mb-truststore
+        - name: liberty-config
+          configMap:
+            name: liberty-logging-config
+            items:
+              - key: keystore.xml
+                path: defaults/keystore.xml
+              - key: logging.xml
+                path: defaults/logging.xml
 ---
 apiVersion: v1
 kind: Service
