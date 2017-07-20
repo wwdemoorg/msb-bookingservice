@@ -28,10 +28,10 @@ spec:
       volumes:
       - name: keystore
         secret:
-          secretName: wlp-keystore
+          secretName: mb-keystore
       - name: truststore
         secret:
-          secretName: wlp-truststore
+          secretName: mb-truststore
       - name: liberty-config
         configMap:
           name: liberty-config
