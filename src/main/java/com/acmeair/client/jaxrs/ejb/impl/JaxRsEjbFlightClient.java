@@ -42,7 +42,9 @@ public class JaxRsEjbFlightClient extends JaxRsClient implements FlightClient {
 
   static {
     System.out.println("Using JAXRSEJBFlightClient");
+    /* cannot use injected member variables in the constructor
     System.out.println("SECURE_SERVICE_CALLS: " + SECURE_SERVICE_CALLS);
+    */
   }
 
   @PostConstruct

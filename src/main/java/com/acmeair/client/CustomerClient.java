@@ -16,19 +16,20 @@
 
 package com.acmeair.client;
 
-/* microprofile-1.1
+/* microprofile-1.1 */
+import javax.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
-*/
+
 
 public interface CustomerClient {
 
   // default to amalgam8
-  /* microprofile-1.1
-  @Inject @ConfigProperty(name="CUSTOMER_SERVICE", defaultValue="localhost:6379/customer") String CUSTOMER_SERVICE_LOC;
-  */
+
+  /*
   static final String CUSTOMER_SERVICE_LOC = 
       ((System.getenv("CUSTOMER_SERVICE") == null) ? "localhost:6379/customer"
       : System.getenv("CUSTOMER_SERVICE"));
+  */
   static final String UPDATE_REWARD_PATH = "/updateCustomerTotalMiles";
 
   public abstract void updateTotalMiles(String customerId, String miles);

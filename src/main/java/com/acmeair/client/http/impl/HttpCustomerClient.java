@@ -26,7 +26,9 @@ public class HttpCustomerClient extends HttpClient implements CustomerClient {
 
   static {
     System.out.println("Using HTTPCustomerClient");
+    /* cannot use injected member variables in the constructor
     System.out.println("SECURE_SERVICE_CALLS: " + SECURE_SERVICE_CALLS);
+    */
   }
 
   /**

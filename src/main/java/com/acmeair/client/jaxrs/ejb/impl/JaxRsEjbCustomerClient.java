@@ -42,7 +42,9 @@ public class JaxRsEjbCustomerClient extends JaxRsClient implements CustomerClien
 
   static {
     System.out.println("Using JAXRSEJBCustomerClient");
+    /* cannot use injected member variables in the constructor
     System.out.println("SECURE_SERVICE_CALLS: " + SECURE_SERVICE_CALLS);
+    */
   }
 
   @PostConstruct

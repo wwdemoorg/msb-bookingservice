@@ -27,19 +27,26 @@ import javax.ws.rs.core.Form;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 
-/* microprofile-1.1
+/* microprofile-1.1 */
 import org.eclipse.microprofile.config.inject.ConfigProperty;
-*/
+
 
 public class JaxRsClient {
 
-  /* microprofile-1.1
-  @Inject @ConfigProperty(name="SECURE_SERVICE_CALLS", defaultValue=false) Boolean SECURE_SERVICE_CALLS;
-  */
+  /* microprofile-1.1 */
+  @Inject @ConfigProperty(name="CUSTOMER_SERVICE", defaultValue="localhost:6379/customer") protected String CUSTOMER_SERVICE_LOC;
+  
+  /* microprofile-1.1 */
+  @Inject @ConfigProperty(name="FLIGHT_SERVICE", defaultValue="localhost:6379/flight") protected String FLIGHT_SERVICE_LOC;
+
+  /* microprofile-1.1 */
+  @Inject @ConfigProperty(name="SECURE_SERVICE_CALLS", defaultValue="false") protected Boolean SECURE_SERVICE_CALLS;
+  
+  /*
   protected static final Boolean SECURE_SERVICE_CALLS = Boolean
       .valueOf((System.getenv("SECURE_SERVICE_CALLS") == null) ? "false" 
           : System.getenv("SECURE_SERVICE_CALLS"));
-
+  */
   @Inject
   private SecurityUtils secUtils;
 

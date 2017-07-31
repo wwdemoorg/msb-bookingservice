@@ -18,56 +18,73 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
-    <modelVersion>4.0.0</modelVersion>
+  <modelVersion>4.0.0</modelVersion>
 
-    <groupId>bookingservice-java</groupId>
-	  <version>2.0.0-SNAPSHOT</version>
-    <artifactId>bookingservice-java</artifactId>
-    <packaging>war</packaging>
-    <name>Booking Service :: Java</name>
-   
-    <properties>
-      <maven.compiler.source>1.8</maven.compiler.source>
-      <maven.compiler.target>1.8</maven.compiler.target>
-    </properties>
+  <groupId>bookingservice-java</groupId>
+  <version>2.0.0-SNAPSHOT</version>
+  <artifactId>bookingservice-java</artifactId>
+  <packaging>war</packaging>
+  <name>Booking Service :: Java</name>
 
-    <build>
-      <plugins>
-          <plugin>
-              <groupId>org.apache.maven.plugins</groupId>
-              <artifactId>maven-war-plugin</artifactId>
-              <version>2.6</version>
-              <configuration>
-                  <failOnMissingWebXml>false</failOnMissingWebXml>
-                  <packagingExcludes>pom.xml</packagingExcludes>
-              </configuration>
-          </plugin>       
-      </plugins>
-    </build>
+  <properties>
+    <maven.compiler.source>1.8</maven.compiler.source>
+    <maven.compiler.target>1.8</maven.compiler.target>
+  </properties>
 
-    <dependencies>
-        <dependency>
-            <groupId>javax</groupId>
-            <artifactId>javaee-api</artifactId>
-            <scope>provided</scope>
-            <version>7.0</version>
-        </dependency>    
-        <dependency>
-            <groupId>org.mongodb</groupId>
-            <artifactId>mongo-java-driver</artifactId>
-            <scope>compile</scope>
-            <version>3.1.1</version>
-        </dependency>
-        <dependency>
-            <groupId>org.mongodb</groupId>
-            <artifactId>bson</artifactId>
-            <scope>compile</scope>
-            <version>3.1.1</version>
-        </dependency>
-        <dependency>
-        	<groupId>com.auth0</groupId>
-        	<artifactId>java-jwt</artifactId>
-    		<version>3.1.0</version>
-		</dependency>
-   </dependencies>
+  <!-- microprofile-1.1 -->
+  <repositories>
+    <repository>
+      <id>liberty-starter-maven-repo</id>
+      <name>liberty-starter-maven-repo</name>
+      <url>http://liberty-app-accelerator.wasdev.developer.ibm.com/start/api/v1/repo</url>
+    </repository>
+  </repositories>
+  
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-war-plugin</artifactId>
+        <version>2.6</version>
+        <configuration>
+          <failOnMissingWebXml>false</failOnMissingWebXml>
+          <packagingExcludes>pom.xml</packagingExcludes>
+        </configuration>
+      </plugin>       
+    </plugins>
+  </build>
+
+  <dependencies>
+    <dependency>
+      <groupId>javax</groupId>
+      <artifactId>javaee-api</artifactId>
+      <scope>provided</scope>
+      <version>7.0</version>
+    </dependency>    
+    <dependency>
+      <groupId>org.mongodb</groupId>
+      <artifactId>mongo-java-driver</artifactId>
+      <scope>compile</scope>
+      <version>3.1.1</version>
+    </dependency>
+    <dependency>
+      <groupId>org.mongodb</groupId>
+      <artifactId>bson</artifactId>
+      <scope>compile</scope>
+      <version>3.1.1</version>
+    </dependency>
+    <dependency>
+      <groupId>com.auth0</groupId>
+      <artifactId>java-jwt</artifactId>
+      <version>3.1.0</version>
+    </dependency>
+    <!-- microprofile-1.1 -->
+    <dependency>
+      <groupId>net.wasdev.wlp.starters.ms-builder</groupId>
+      <artifactId>config</artifactId>
+      <version>0.1</version>
+      <type>jar</type>
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
 </project>

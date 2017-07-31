@@ -35,7 +35,9 @@ public class HttpFlightClient extends HttpClient implements FlightClient {
 
   static {
     System.out.println("Using HTTPFlightClient");
+    /* cannot use injected member variables in the constructor
     System.out.println("SECURE_SERVICE_CALLS: " + SECURE_SERVICE_CALLS);
+    */
   }
 
   /**
