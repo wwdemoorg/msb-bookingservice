@@ -28,11 +28,18 @@ import java.util.Date;
 
 import javax.inject.Inject;
 
+/* microprofile-1.1
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+*/
+
 public class HttpClient {
 
   @Inject
   private SecurityUtils secUtils;
 
+  /* microprofile-1.1
+  @Inject @ConfigProperty(name="SECURE_SERVICE_CALLS", defaultValue=false) Boolean SECURE_SERVICE_CALLS;
+  */
   protected static final Boolean SECURE_SERVICE_CALLS = Boolean
       .valueOf((System.getenv("SECURE_SERVICE_CALLS") == null) ? "false" 
           : System.getenv("SECURE_SERVICE_CALLS"));

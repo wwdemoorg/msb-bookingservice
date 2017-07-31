@@ -50,7 +50,7 @@ public class JaxRsCustomerClient extends JaxRsClient implements CustomerClient {
   public void init() {
     if (customerTargetBase == null) {
       Client customerClient = ClientBuilder.newClient();
-      customerClient.property("http.maxConnections", Integer.valueOf(50));
+      //customerClient.property("http.maxConnections", Integer.valueOf(50));
       customerClient.property("thread.safe.client", Boolean.valueOf(true));
       customerTargetBase = customerClient.target("http://" + CUSTOMER_SERVICE_LOC + UPDATE_REWARD_PATH);
     }

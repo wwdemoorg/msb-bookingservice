@@ -48,7 +48,7 @@ public class JaxRsFlightClient extends JaxRsClient implements FlightClient {
   public void init() {
     if (flightTarget == null) {
       Client flightClient = ClientBuilder.newClient();
-      flightClient.property("http.maxConnections", Integer.valueOf(50));
+      //flightClient.property("http.maxConnections", Integer.valueOf(50));
       flightClient.property("thread.safe.client", Boolean.valueOf(true));
       flightTarget = flightClient.target("http://" + FLIGHT_SERVICE_LOC + GET_REWARD_PATH);
     }

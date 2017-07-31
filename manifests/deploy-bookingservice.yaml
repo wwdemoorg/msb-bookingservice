@@ -18,6 +18,10 @@ spec:
         env:
         - name: MONGO_HOST
           value: booking-db
+        - name: TRACK_REWARD_MILES
+          value: 'true'
+        - name: SECURE_SERVICE_CALLS
+          value: 'true'
         - name: MB_KEYSTORE_PASSWORD
           valueFrom:
             secretKeyRef:

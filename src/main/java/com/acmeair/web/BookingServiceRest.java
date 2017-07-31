@@ -41,6 +41,10 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
+/* microprofile-1.1
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+*/
+
 @Path("/")
 public class BookingServiceRest {
 
@@ -61,10 +65,16 @@ public class BookingServiceRest {
   private static final JsonReaderFactory factory = Json.createReaderFactory(null);
 
   // TRACK MILES OPTIONS
+  /* microprofile-1.1
+  @Inject @ConfigProperty(name="TRACK_REWARD_MILES", defaultValue=false) Boolean TRACK_REWARD_MILES;
+  */
   private static final Boolean TRACK_REWARD_MILES = Boolean
       .valueOf((System.getenv("TRACK_REWARD_MILES") == null) ? "false" 
           : System.getenv("TRACK_REWARD_MILES"));
   
+  /* microprofile-1.1
+  @Inject @ConfigProperty(name="SECURE_USER_CALLS", defaultValue=true) Boolean SECURE_USER_CALLS;
+  */
   private static final Boolean SECURE_USER_CALLS = Boolean
       .valueOf((System.getenv("SECURE_USER_CALLS") == null) ? "true" 
           : System.getenv("SECURE_USER_CALLS"));

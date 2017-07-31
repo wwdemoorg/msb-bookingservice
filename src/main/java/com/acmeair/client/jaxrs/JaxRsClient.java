@@ -27,8 +27,15 @@ import javax.ws.rs.core.Form;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 
+/* microprofile-1.1
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+*/
+
 public class JaxRsClient {
 
+  /* microprofile-1.1
+  @Inject @ConfigProperty(name="SECURE_SERVICE_CALLS", defaultValue=false) Boolean SECURE_SERVICE_CALLS;
+  */
   protected static final Boolean SECURE_SERVICE_CALLS = Boolean
       .valueOf((System.getenv("SECURE_SERVICE_CALLS") == null) ? "false" 
           : System.getenv("SECURE_SERVICE_CALLS"));

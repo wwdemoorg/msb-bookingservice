@@ -45,9 +45,11 @@ public class HttpFlightClient extends HttpClient implements FlightClient {
   public String getRewardMiles(String customerId, String flightSegId, boolean add) {
     // Set maxConnections - this seems to help with keepalives/running out of
     // sockets with a high load.
+    /*
     if (System.getProperty("http.maxConnections") == null) {
       System.setProperty("http.maxConnections", "50");
     }
+    */
 
     String flightUrl = "http://" + FLIGHT_SERVICE_LOC + GET_REWARD_PATH;
     String flightParameters = "flightSegment=" + flightSegId;
