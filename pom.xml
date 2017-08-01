@@ -31,15 +31,15 @@
     <maven.compiler.target>1.8</maven.compiler.target>
   </properties>
 
-  <!-- microprofile-1.1 -->
+  <!-- microprofile-1.1
   <repositories>
     <repository>
       <id>liberty-starter-maven-repo</id>
       <name>liberty-starter-maven-repo</name>
       <url>http://liberty-app-accelerator.wasdev.developer.ibm.com/start/api/v1/repo</url>
     </repository>
-  </repositories>
-  
+  </repositories> -->
+
   <build>
     <plugins>
       <plugin>
@@ -80,9 +80,9 @@
     </dependency>
     <!-- microprofile-1.1 -->
     <dependency>
-      <groupId>net.wasdev.wlp.starters.ms-builder</groupId>
-      <artifactId>config</artifactId>
-      <version>0.1</version>
+      <groupId>org.eclipse.microprofile.config</groupId>
+      <artifactId>microprofile-config-api</artifactId>
+      <version>1.0</version>
       <type>jar</type>
       <scope>provided</scope>
     </dependency>
