@@ -39,7 +39,7 @@ import org.bson.Document;
 
 public class BookingServiceImpl implements BookingService, MongoConstants {
 
-  protected Logger logger = Logger.getLogger(BookingService.class.getName());
+  private static final  Logger logger = Logger.getLogger(BookingService.class.getName());
 
   private MongoCollection<Document> booking;
 

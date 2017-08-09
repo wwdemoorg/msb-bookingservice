@@ -38,7 +38,7 @@ import javax.ws.rs.core.Response.Status;
 
 public class SecurityUtils {
     
-  protected Logger logger =  Logger.getLogger(SecurityUtils.class.getName());
+  private static final Logger logger =  Logger.getLogger(SecurityUtils.class.getName());
     
   // TODO: Hardcode for now
   private static final String secretKey = "acmeairsecret128";
