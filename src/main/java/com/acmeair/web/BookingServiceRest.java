@@ -56,7 +56,7 @@ public class BookingServiceRest {
   @Inject
   private CustomerClient customerClient;
 
-  protected Logger logger = Logger.getLogger(BookingServiceRest.class.getName());
+  private static final Logger logger = Logger.getLogger(BookingServiceRest.class.getName());
 
   private static final JsonReaderFactory factory = Json.createReaderFactory(null);
 
